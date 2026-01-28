@@ -60,6 +60,20 @@ const App: React.FC = () => {
     breed: '', gender: 'Wallach', color: '', weightKg: 600,
   });
   const [redeemCode, setRedeemCode] = useState('');
+  const [horseCreateLoading, setHorseCreateLoading] = useState(false);
+  const [horseError, setHorseError] = useState<string | null>(null);
+
+  const defaultHorseData = (): Partial<Horse> => ({
+    name: '', isoNr: '', feiNr: '', birthYear: new Date().getFullYear(), breedingAssociation: '',
+    breed: '', gender: 'Wallach', color: '', weightKg: 600,
+  });
+  const closeAddHorseModal = () => {
+    setShowAddHorseModal(false);
+    setNewHorseData(defaultHorseData());
+    setRedeemCode('');
+    setAddMode('manual');
+    setHorseError(null);
+  };
 
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -255,33 +269,45 @@ const App: React.FC = () => {
 
   const handleCreateHorse = async (e: React.FormEvent) => {
     e.preventDefault();
+    setHorseError(null);
     if (addMode === 'transfer') {
-      alert('Transfer-Code wird noch nicht unterstützt.');
+      setHorseError('Transfer-Code wird noch nicht unterstützt.');
       return;
     }
-    if (!profile || profile.role !== 'owner') return;
+    if (!profile || profile.role !== 'owner') {
+      setHorseError('Nur Pferdebesitzer können Pferde anlegen.');
+      return;
+    }
+    const name = (newHorseData.name ?? '').trim();
+    const isoNr = (newHorseData.isoNr ?? '').trim();
+    const feiNr = (newHorseData.feiNr ?? '').trim();
+    if (!name || !isoNr || !feiNr) {
+      setHorseError('Pferdename, ISO-Nr. und FEI-Nr. sind Pflichtangaben.');
+      return;
+    }
+    setHorseCreateLoading(true);
     try {
       const horse = await horseService.createHorse(profile.id, ownerName, {
-        name: newHorseData.name!,
-        isoNr: newHorseData.isoNr!,
-        feiNr: newHorseData.feiNr!,
+        name,
+        isoNr,
+        feiNr,
         birthYear: newHorseData.birthYear ?? new Date().getFullYear(),
-        breedingAssociation: newHorseData.breedingAssociation ?? '',
-        breed: newHorseData.breed ?? '',
+        breedingAssociation: (newHorseData.breedingAssociation ?? '').trim(),
+        breed: (newHorseData.breed ?? '').trim(),
         gender: (newHorseData.gender as Horse['gender']) ?? 'Wallach',
-        color: newHorseData.color ?? '',
-        chipId: newHorseData.chipId ?? 'Nicht angegeben',
-        image: `https://picsum.photos/seed/${newHorseData.name}/400/300`,
+        color: (newHorseData.color ?? '').trim(),
+        chipId: (newHorseData.chipId ?? '').trim() || 'Nicht angegeben',
+        image: `https://picsum.photos/seed/${name}/400/300`,
         weightKg: newHorseData.weightKg ?? 600,
         vaccinations: [],
         serviceHistory: [],
       });
       setHorses(prev => [horse, ...prev]);
-      setShowAddHorseModal(false);
-      setNewHorseData({ name: '', isoNr: '', feiNr: '', birthYear: new Date().getFullYear(), breedingAssociation: '', breed: '', gender: 'Wallach', color: '', weightKg: 600 });
-      setRedeemCode('');
+      closeAddHorseModal();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Pferd anlegen fehlgeschlagen.');
+      setHorseError(err instanceof Error ? err.message : 'Pferd anlegen fehlgeschlagen.');
+    } finally {
+      setHorseCreateLoading(false);
     }
   };
 
@@ -536,7 +562,7 @@ const App: React.FC = () => {
         {ownerSubView === 'dashboard' ? (
           <ActionDashboard horses={horses} onSelectHorse={setSelectedHorse} onGoToStable={() => setOwnerSubView('stableOverview')} />
         ) : (
-          <HealthDashboard horses={horses} onSelectHorse={setSelectedHorse} onAddNewHorse={() => setShowAddHorseModal(true)} onExport={() => {}} onGoToDashboard={() => setOwnerSubView('dashboard')} />
+          <HealthDashboard horses={horses} onSelectHorse={setSelectedHorse} onAddNewHorse={() => { setHorseError(null); setShowAddHorseModal(true); }} onExport={() => {}} onGoToDashboard={() => setOwnerSubView('dashboard')} />
         )}
       </div>
     );
@@ -552,31 +578,46 @@ const App: React.FC = () => {
           </div>
           {authState === 'AUTHENTICATED' && (
             <div className="flex items-center gap-3">
-              <div className="relative" ref={notificationRef}>
-                <button onClick={() => setShowNotifications(!showNotifications)} className="p-2 text-slate-400 relative hover:bg-slate-100 rounded-xl transition-all">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                  {notifications.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>}
-                </button>
-                {showNotifications && (
-                  <div className="absolute right-0 mt-3 w-80 bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 p-2 animate-in zoom-in-95 duration-200">
-                    <div className="p-3 border-b border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mitteilungen</div>
-                    <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                      {notifications.length > 0 ? notifications.map((n, i) => (
-                        <div key={i} className="p-4 hover:bg-slate-50 cursor-pointer rounded-2xl border-b border-slate-50 last:border-0" onClick={() => { setSelectedHorse(n.horse); setShowNotifications(false); }}>
-                          <p className="text-sm font-bold text-slate-800">{n.horse.name}</p><p className="text-[10px] text-slate-500 font-medium">{n.message}</p>
-                        </div>
-                      )) : <div className="p-10 text-center text-slate-400 text-xs italic">Keine neuen Mitteilungen</div>}
+              {profile?.role === 'owner' && (
+                <div className="relative" ref={notificationRef}>
+                  <button onClick={() => setShowNotifications(!showNotifications)} className="p-2 text-slate-400 relative hover:bg-slate-100 rounded-xl transition-all">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                    {notifications.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>}
+                  </button>
+                  {showNotifications && (
+                    <div className="absolute right-0 mt-3 w-80 bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 p-2 animate-in zoom-in-95 duration-200">
+                      <div className="p-3 border-b border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mitteilungen</div>
+                      <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                        {notifications.length > 0 ? notifications.map((n, i) => (
+                          <div key={i} className="p-4 hover:bg-slate-50 cursor-pointer rounded-2xl border-b border-slate-50 last:border-0" onClick={() => { setSelectedHorse(n.horse); setShowNotifications(false); }}>
+                            <p className="text-sm font-bold text-slate-800">{n.horse.name}</p><p className="text-[10px] text-slate-500 font-medium">{n.message}</p>
+                          </div>
+                        )) : <div className="p-10 text-center text-slate-400 text-xs italic">Keine neuen Mitteilungen</div>}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
               <div className="relative" ref={profileRef}>
                 <button onClick={() => setShowProfileMenu(!showProfileMenu)} className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center font-black text-white text-sm border-2 border-slate-200 shadow-sm">M</button>
                 {showProfileMenu && (
                   <div className="absolute right-0 mt-3 w-60 bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 py-2 animate-in zoom-in-95 duration-200">
-                    <button onClick={() => {setOwnerSubView('profile'); setShowProfileMenu(false);}} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Profil bearbeiten</button>
-                    <button onClick={() => {setOwnerSubView('settings'); setShowProfileMenu(false);}} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Einstellungen</button>
-                    <div className="border-t border-slate-50 mt-2 pt-2"><button onClick={async () => { await auth.signOut(); setAuthState('LANDING'); setProfile(null); setHorses([]); }} className="w-full text-left px-5 py-3 text-rose-600 font-bold hover:bg-rose-50 text-sm">Abmelden</button></div>
+                    {profile?.role === 'owner' && (
+                      <>
+                        <button type="button" onClick={() => { setOwnerSubView('profile'); setShowProfileMenu(false); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Profil bearbeiten</button>
+                        <button type="button" onClick={() => { setOwnerSubView('settings'); setShowProfileMenu(false); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Einstellungen</button>
+                      </>
+                    )}
+                    <div className="border-t border-slate-50 mt-2 pt-2">
+                      <button type="button" onClick={async () => {
+                        setShowProfileMenu(false);
+                        try { await auth.signOut(); } catch (_) { /* ignore */ }
+                        setAuthState('LANDING');
+                        setProfile(null);
+                        setHorses([]);
+                        setView(UserView.OWNER);
+                      }} className="w-full text-left px-5 py-3 text-rose-600 font-bold hover:bg-rose-50 text-sm">Abmelden</button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -588,12 +629,12 @@ const App: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-8">
         {!authReady ? (
           <div className="flex items-center justify-center min-h-[40vh] text-slate-400 font-medium">Laden…</div>
-        ) : authState === 'AUTHENTICATED' ? (view === UserView.VET ? <VetPortal /> : renderContent()) : renderAuth()}
+        ) : authState === 'AUTHENTICATED' ? (profile?.role === 'vet' ? <VetPortal /> : renderContent()) : renderAuth()}
       </main>
 
       {showAddHorseModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <form onSubmit={handleCreateHorse} className="bg-white rounded-[2.5rem] p-10 max-w-xl w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-6">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={closeAddHorseModal} role="presentation">
+          <form onSubmit={handleCreateHorse} className="bg-white rounded-[2.5rem] p-10 max-w-xl w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-6" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center border-b border-slate-100 pb-6">
               <h4 className="text-2xl font-black tracking-tight">Neues Pferd</h4>
               <div className="flex bg-slate-100 p-1.5 rounded-2xl">
@@ -606,11 +647,11 @@ const App: React.FC = () => {
                 <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename *</label><input required type="text" value={newHorseData.name} onChange={e => setNewHorseData({...newHorseData, name: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Name" /></div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN) *</label><input required type="text" value={newHorseData.isoNr} onChange={e => setNewHorseData({...newHorseData, isoNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="z.B. DE..." /></div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FEI-Nr. *</label><input required type="text" value={newHorseData.feiNr} onChange={e => setNewHorseData({...newHorseData, feiNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="z.B. 10..." /></div>
-                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr *</label><input required type="number" value={newHorseData.birthYear} onChange={e => setNewHorseData({...newHorseData, birthYear: parseInt(e.target.value)})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
-                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zuchtverband *</label><input required type="text" value={newHorseData.breedingAssociation} onChange={e => setNewHorseData({...newHorseData, breedingAssociation: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
+                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr *</label><input required type="number" value={newHorseData.birthYear} onChange={e => setNewHorseData({...newHorseData, birthYear: parseInt(e.target.value, 10) || new Date().getFullYear()})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
                 <div className="col-span-2 pt-4 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Optionale Details</div>
-                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Rasse</label><input type="text" value={newHorseData.breed} onChange={e => setNewHorseData({...newHorseData, breed: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
-                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Chip-ID</label><input type="text" value={newHorseData.chipId} onChange={e => setNewHorseData({...newHorseData, chipId: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
+                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zuchtverband</label><input type="text" value={newHorseData.breedingAssociation} onChange={e => setNewHorseData({...newHorseData, breedingAssociation: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="z.B. Oldenburger Verband" /></div>
+                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Rasse</label><input type="text" value={newHorseData.breed} onChange={e => setNewHorseData({...newHorseData, breed: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Chip-ID</label><input type="text" value={newHorseData.chipId} onChange={e => setNewHorseData({...newHorseData, chipId: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
               </div>
             ) : (
               <div className="py-12 space-y-6 text-center">
@@ -618,9 +659,10 @@ const App: React.FC = () => {
                 <input type="text" maxLength={6} value={redeemCode} onChange={e => setRedeemCode(e.target.value.replace(/\D/g,''))} placeholder="000000" className="w-full p-8 text-center text-5xl font-black tracking-[1rem] bg-slate-50 border border-slate-200 rounded-[2.5rem] outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
             )}
+            {horseError && <p className="text-sm text-rose-600 font-medium">{horseError}</p>}
             <div className="flex gap-4 pt-4 border-t border-slate-50">
-              <button type="button" onClick={() => setShowAddHorseModal(false)} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200">Abbrechen</button>
-              <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all">Pferd hinzufügen</button>
+              <button type="button" onClick={closeAddHorseModal} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200">Abbrechen</button>
+              <button type="submit" disabled={horseCreateLoading} className="flex-1 py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-60">{horseCreateLoading ? 'Wird hinzugefügt…' : 'Pferd hinzufügen'}</button>
             </div>
           </form>
         </div>
