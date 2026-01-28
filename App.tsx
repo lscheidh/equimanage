@@ -1,60 +1,140 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { UserView, Horse, ComplianceStatus, Vaccination, ServiceRecord, ServiceType } from './types';
-import { MOCK_HORSES } from './data';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { UserView, Horse, ComplianceStatus, Vaccination, ServiceRecord, Profile, Stable } from './types';
 import { HealthDashboard } from './components/HealthDashboard';
 import { ActionDashboard } from './components/ActionDashboard';
 import { HorseDetails } from './components/HorseDetails';
 import { VetPortal } from './components/VetPortal';
 import { checkFEICompliance, checkHoofCareStatus } from './logic';
+import * as auth from './services/authService';
+import * as horseService from './services/horseService';
+import { supabase } from './services/supabase';
 
 type ProfileSubView = 'stableOverview' | 'profile' | 'settings' | 'dashboard';
 type AuthState = 'LANDING' | 'LOGIN' | 'REGISTER_CHOICE' | 'REGISTER_OWNER' | 'REGISTER_VET' | 'AUTHENTICATED';
-
-const EXISTING_STABLES = [
-  { id: 's1', name: 'Reitstall Grüne Wiese', zip: '12345' },
-  { id: 's2', name: 'Gut Sonnenhof', zip: '12345' },
-];
 
 const App: React.FC = () => {
   const [authState, setAuthState] = useState<AuthState>('LANDING');
   const [view, setView] = useState<UserView>(UserView.OWNER);
   const [ownerSubView, setOwnerSubView] = useState<ProfileSubView>('dashboard');
-  const [horses, setHorses] = useState<Horse[]>(MOCK_HORSES);
+  const [horses, setHorses] = useState<Horse[]>([]);
   const [selectedHorse, setSelectedHorse] = useState<Horse | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAddHorseModal, setShowAddHorseModal] = useState(false);
   const [addMode, setAddMode] = useState<'manual' | 'transfer'>('manual');
-  
-  // Registration States
-  const [regZip, setRegZip] = useState('');
-  const [suggestedStables, setSuggestedStables] = useState<typeof EXISTING_STABLES>([]);
-  const [selectedStableId, setSelectedStableId] = useState<string>('');
-  
-  const [newHorseData, setNewHorseData] = useState<Partial<Horse>>({
-    name: '', isoNr: '', feiNr: '', birthYear: new Date().getFullYear(), breedingAssociation: '',
-    breed: '', gender: 'Wallach', color: '', weightKg: 600
-  });
-  const [redeemCode, setRedeemCode] = useState('');
+
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   const [userSettings, setUserSettings] = useState({
-    firstName: 'Max',
-    lastName: 'Mustermann',
-    stallName: 'Gut Sonnenhof',
+    firstName: '',
+    lastName: '',
+    stallName: '',
     notifyVaccination: true,
-    notifyHoof: true
+    notifyHoof: true,
   });
+
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
+  const [regZip, setRegZip] = useState('');
+  const [regFirstName, setRegFirstName] = useState('');
+  const [regLastName, setRegLastName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [suggestedStables, setSuggestedStables] = useState<Stable[]>([]);
+  const [selectedStableId, setSelectedStableId] = useState<string>('');
+  const [createNewStable, setCreateNewStable] = useState(false);
+
+  const [vetPracticeName, setVetPracticeName] = useState('');
+  const [vetZip, setVetZip] = useState('');
+  const [vetEmail, setVetEmail] = useState('');
+  const [vetPassword, setVetPassword] = useState('');
+
+  const [newHorseData, setNewHorseData] = useState<Partial<Horse>>({
+    name: '', isoNr: '', feiNr: '', birthYear: new Date().getFullYear(), breedingAssociation: '',
+    breed: '', gender: 'Wallach', color: '', weightKg: 600,
+  });
+  const [redeemCode, setRedeemCode] = useState('');
 
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (regZip.length >= 3) {
-      setSuggestedStables(EXISTING_STABLES.filter(s => s.zip.startsWith(regZip)));
+  const ownerName = profile ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Nutzer' : '';
+  const stallDisplay = profile?.stall_name ?? profile?.practice_name ?? '';
+
+  const loadProfileAndData = useCallback(async () => {
+    const p = await auth.getProfile();
+    setProfile(p);
+    if (!p) return;
+    const role = p.role;
+    setView(role === 'vet' ? UserView.VET : UserView.OWNER);
+    setUserSettings({
+      firstName: p.first_name ?? '',
+      lastName: p.last_name ?? '',
+      stallName: p.stall_name ?? p.practice_name ?? '',
+      notifyVaccination: p.notify_vaccination ?? true,
+      notifyHoof: p.notify_hoof ?? true,
+    });
+    const name = [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Nutzer';
+    if (role === 'owner') {
+      const list = await horseService.fetchHorses(p.id, name);
+      setHorses(list);
     } else {
-      setSuggestedStables([]);
+      setHorses([]);
     }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const session = await auth.getSession();
+      if (!mounted) return;
+      if (session) {
+        await loadProfileAndData();
+        setAuthState('AUTHENTICATED');
+      } else {
+        setAuthState('LANDING');
+        setProfile(null);
+        setHorses([]);
+        setView(UserView.OWNER);
+      }
+      setAuthReady(true);
+    };
+    load();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+      if (event === 'SIGNED_OUT') {
+        setAuthState('LANDING');
+        setProfile(null);
+        setHorses([]);
+        setView(UserView.OWNER);
+        return;
+      }
+      if (session && event !== 'INITIAL_SESSION') {
+        await loadProfileAndData();
+        setAuthState('AUTHENTICATED');
+      }
+    });
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [loadProfileAndData]);
+
+  useEffect(() => {
+    if (regZip.length < 2) {
+      setSuggestedStables([]);
+      return;
+    }
+    let cancelled = false;
+    auth.listStablesByZip(regZip).then((list) => {
+      if (!cancelled) setSuggestedStables(list);
+    });
+    return () => { cancelled = true; };
   }, [regZip]);
 
   const notifications = horses.flatMap(horse => {
@@ -79,61 +159,129 @@ const App: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleUpdateHorse = (updatedHorse: Horse) => {
+  const persistHorse = async (h: Horse) => {
+    if (!profile || profile.role !== 'owner') return;
+    try {
+      const updated = await horseService.updateHorse(profile.id, ownerName, h);
+      setHorses(prev => prev.map(x => x.id === updated.id ? updated : x));
+      if (selectedHorse?.id === h.id) setSelectedHorse(updated);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Speichern fehlgeschlagen.');
+    }
+  };
+
+  const handleUpdateHorse = async (updatedHorse: Horse) => {
     setHorses(prev => prev.map(h => h.id === updatedHorse.id ? updatedHorse : h));
     setSelectedHorse(updatedHorse);
+    await persistHorse(updatedHorse);
   };
 
-  const handleBulkAddVaccination = (horseIds: string[], vacc: Omit<Vaccination, 'id'>) => {
-    setHorses(prev => prev.map(h => horseIds.includes(h.id) ? { ...h, vaccinations: [{ ...vacc, id: crypto.randomUUID() }, ...h.vaccinations] } : h));
+  const handleBulkAddVaccination = async (horseIds: string[], vacc: Omit<Vaccination, 'id'>) => {
+    const v = { ...vacc, id: crypto.randomUUID() };
+    const updated: Horse[] = [];
+    setHorses(prev => prev.map(h => {
+      if (!horseIds.includes(h.id)) return h;
+      const next = { ...h, vaccinations: [v, ...h.vaccinations] };
+      updated.push(next);
+      return next;
+    }));
+    for (const h of updated) await persistHorse(h);
   };
 
-  const handleUpdateVaccination = (horseId: string, updatedVacc: Vaccination) => {
-    setHorses(prev => prev.map(h => h.id === horseId ? { ...h, vaccinations: h.vaccinations.map(v => v.id === updatedVacc.id ? updatedVacc : v) } : h));
+  const handleUpdateVaccination = async (horseId: string, updatedVacc: Vaccination) => {
+    let u: Horse | null = null;
+    setHorses(prev => prev.map(h => {
+      if (h.id !== horseId) return h;
+      u = { ...h, vaccinations: h.vaccinations.map(v => v.id === updatedVacc.id ? updatedVacc : v) };
+      return u;
+    }));
+    if (u) await persistHorse(u);
   };
 
-  const handleDeleteVaccination = (horseId: string, vaccId: string) => {
-    setHorses(prev => prev.map(h => h.id === horseId ? { ...h, vaccinations: h.vaccinations.filter(v => v.id !== vaccId) } : h));
+  const handleDeleteVaccination = async (horseId: string, vaccId: string) => {
+    let u: Horse | null = null;
+    setHorses(prev => prev.map(h => {
+      if (h.id !== horseId) return h;
+      u = { ...h, vaccinations: h.vaccinations.filter(v => v.id !== vaccId) };
+      return u;
+    }));
+    if (u) await persistHorse(u);
   };
 
-  const handleBulkAddService = (horseIds: string[], service: Omit<ServiceRecord, 'id'>) => {
-    setHorses(prev => prev.map(h => horseIds.includes(h.id) ? { ...h, serviceHistory: [{ ...service, id: crypto.randomUUID() }, ...h.serviceHistory] } : h));
+  const handleBulkAddService = async (horseIds: string[], service: Omit<ServiceRecord, 'id'>) => {
+    const s = { ...service, id: crypto.randomUUID() };
+    const updated: Horse[] = [];
+    setHorses(prev => prev.map(h => {
+      if (!horseIds.includes(h.id)) return h;
+      const next = { ...h, serviceHistory: [s, ...h.serviceHistory] };
+      updated.push(next);
+      return next;
+    }));
+    for (const h of updated) await persistHorse(h);
   };
 
-  const handleUpdateService = (horseId: string, updatedService: ServiceRecord) => {
-    setHorses(prev => prev.map(h => h.id === horseId ? { ...h, serviceHistory: h.serviceHistory.map(s => s.id === updatedService.id ? updatedService : s) } : h));
+  const handleUpdateService = async (horseId: string, updatedService: ServiceRecord) => {
+    let u: Horse | null = null;
+    setHorses(prev => prev.map(h => {
+      if (h.id !== horseId) return h;
+      u = { ...h, serviceHistory: h.serviceHistory.map(x => x.id === updatedService.id ? updatedService : x) };
+      return u;
+    }));
+    if (u) await persistHorse(u);
   };
 
-  const handleDeleteService = (horseId: string, serviceId: string) => {
-    setHorses(prev => prev.map(h => h.id === horseId ? { ...h, serviceHistory: h.serviceHistory.filter(s => s.id !== serviceId) } : h));
+  const handleDeleteService = async (horseId: string, serviceId: string) => {
+    let u: Horse | null = null;
+    setHorses(prev => prev.map(h => {
+      if (h.id !== horseId) return h;
+      u = { ...h, serviceHistory: h.serviceHistory.filter(x => x.id !== serviceId) };
+      return u;
+    }));
+    if (u) await persistHorse(u);
   };
 
-  const handleDeleteHorse = (id: string) => {
-    setHorses(prev => prev.filter(h => h.id !== id));
-    setSelectedHorse(null);
-    setOwnerSubView('stableOverview');
+  const handleDeleteHorse = async (id: string) => {
+    if (!profile) return;
+    try {
+      await horseService.deleteHorse(profile.id, id);
+      setHorses(prev => prev.filter(h => h.id !== id));
+      setSelectedHorse(null);
+      setOwnerSubView('stableOverview');
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Löschen fehlgeschlagen.');
+    }
   };
 
-  const handleCreateHorse = (e: React.FormEvent) => {
+  const handleCreateHorse = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (addMode === 'manual') {
-      const horse: Horse = {
-        ...newHorseData as Horse,
-        id: crypto.randomUUID(),
-        ownerId: 'current-user',
-        ownerName: `${userSettings.firstName} ${userSettings.lastName}`,
+    if (addMode === 'transfer') {
+      alert('Transfer-Code wird noch nicht unterstützt.');
+      return;
+    }
+    if (!profile || profile.role !== 'owner') return;
+    try {
+      const horse = await horseService.createHorse(profile.id, ownerName, {
+        name: newHorseData.name!,
+        isoNr: newHorseData.isoNr!,
+        feiNr: newHorseData.feiNr!,
+        birthYear: newHorseData.birthYear ?? new Date().getFullYear(),
+        breedingAssociation: newHorseData.breedingAssociation ?? '',
+        breed: newHorseData.breed ?? '',
+        gender: (newHorseData.gender as Horse['gender']) ?? 'Wallach',
+        color: newHorseData.color ?? '',
+        chipId: newHorseData.chipId ?? 'Nicht angegeben',
         image: `https://picsum.photos/seed/${newHorseData.name}/400/300`,
+        weightKg: newHorseData.weightKg ?? 600,
         vaccinations: [],
         serviceHistory: [],
-        chipId: newHorseData.chipId || 'Nicht angegeben'
-      };
+      });
       setHorses(prev => [horse, ...prev]);
-    } else {
-      alert("Pferd erfolgreich mit Code übernommen!");
+      setShowAddHorseModal(false);
+      setNewHorseData({ name: '', isoNr: '', feiNr: '', birthYear: new Date().getFullYear(), breedingAssociation: '', breed: '', gender: 'Wallach', color: '', weightKg: 600 });
+      setRedeemCode('');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Pferd anlegen fehlgeschlagen.');
     }
-    setShowAddHorseModal(false);
-    setNewHorseData({ name: '', isoNr: '', feiNr: '', birthYear: new Date().getFullYear(), breedingAssociation: '' });
-    setRedeemCode('');
   };
 
   const renderAuth = () => {
@@ -156,11 +304,27 @@ const App: React.FC = () => {
         return (
           <div className="max-w-md mx-auto bg-white rounded-[2.5rem] p-10 shadow-xl border border-slate-100 animate-in zoom-in duration-300">
             <h2 className="text-3xl font-bold mb-6">Willkommen zurück</h2>
-            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setAuthState('AUTHENTICATED'); }}>
-              <input type="email" placeholder="E-Mail Adresse" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
-              <input type="password" placeholder="Passwort" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
-              <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg mt-4">Login</button>
-              <button type="button" onClick={() => setAuthState('LANDING')} className="w-full text-slate-400 text-sm py-2 hover:text-slate-600">Zurück zur Startseite</button>
+            <form className="space-y-4" onSubmit={async (e) => {
+              e.preventDefault();
+              setAuthError(null);
+              setAuthLoading(true);
+              try {
+                await auth.signIn(loginEmail, loginPassword);
+                await loadProfileAndData();
+                setAuthState('AUTHENTICATED');
+                setLoginEmail('');
+                setLoginPassword('');
+              } catch (err) {
+                setAuthError(err instanceof Error ? err.message : 'Anmeldung fehlgeschlagen.');
+              } finally {
+                setAuthLoading(false);
+              }
+            }}>
+              <input type="email" placeholder="E-Mail Adresse" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+              <input type="password" placeholder="Passwort" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+              {authError && <p className="text-sm text-rose-600 font-medium">{authError}</p>}
+              <button type="submit" disabled={authLoading} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg mt-4 disabled:opacity-60">Login</button>
+              <button type="button" onClick={() => { setAuthState('LANDING'); setAuthError(null); }} className="w-full text-slate-400 text-sm py-2 hover:text-slate-600">Zurück zur Startseite</button>
             </form>
           </div>
         );
@@ -188,25 +352,54 @@ const App: React.FC = () => {
         return (
           <div className="max-w-2xl mx-auto bg-white rounded-[3rem] p-12 shadow-xl border border-slate-100 animate-in slide-in-from-bottom-8">
             <h2 className="text-3xl font-bold mb-8">Besitzer-Profil erstellen</h2>
-            <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); setAuthState('AUTHENTICATED'); }}>
+            <form className="space-y-5" onSubmit={async (e) => {
+              e.preventDefault();
+              setAuthError(null);
+              if (!createNewStable && !selectedStableId) {
+                setAuthError('Bitte wähle einen Stall oder „Stall neu anlegen“.');
+                return;
+              }
+              setAuthLoading(true);
+              try {
+                const stallName = createNewStable ? 'Neuer Stall' : (suggestedStables.find(s => s.id === selectedStableId)?.name ?? '');
+                await auth.signUpOwner({
+                  email: regEmail,
+                  password: regPassword,
+                  firstName: regFirstName,
+                  lastName: regLastName,
+                  zip: regZip,
+                  stableId: createNewStable ? null : selectedStableId || null,
+                  stallName: stallName || 'Neuer Stall',
+                });
+                await loadProfileAndData();
+                setAuthState('AUTHENTICATED');
+                setRegZip(''); setRegFirstName(''); setRegLastName(''); setRegEmail(''); setRegPassword('');
+                setSelectedStableId(''); setCreateNewStable(false);
+              } catch (err) {
+                setAuthError(err instanceof Error ? err.message : 'Registrierung fehlgeschlagen.');
+              } finally {
+                setAuthLoading(false);
+              }
+            }}>
               <div className="grid grid-cols-2 gap-4">
-                <input type="text" placeholder="Vorname" className="p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-                <input type="text" placeholder="Nachname" className="p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+                <input type="text" placeholder="Vorname" value={regFirstName} onChange={e => setRegFirstName(e.target.value)} className="p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+                <input type="text" placeholder="Nachname" value={regLastName} onChange={e => setRegLastName(e.target.value)} className="p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
               </div>
-              <input type="text" value={regZip} onChange={e => setRegZip(e.target.value)} placeholder="Stall-Suche via PLZ" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-              {regZip.length >= 3 && (
+              <input type="text" value={regZip} onChange={e => { setRegZip(e.target.value); setCreateNewStable(false); setSelectedStableId(''); }} placeholder="Stall-Suche via PLZ" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+              {regZip.length >= 2 && (
                 <div className="space-y-2 p-3 bg-indigo-50 rounded-2xl">
                   {suggestedStables.map(s => (
-                    <button key={s.id} type="button" onClick={() => setSelectedStableId(s.id)} className={`w-full p-3 rounded-xl text-left text-sm font-bold border ${selectedStableId === s.id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}`}>{s.name}</button>
+                    <button key={s.id} type="button" onClick={() => { setSelectedStableId(s.id); setCreateNewStable(false); }} className={`w-full p-3 rounded-xl text-left text-sm font-bold border ${selectedStableId === s.id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}`}>{s.name}</button>
                   ))}
-                  <button type="button" className="w-full p-3 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-bold text-xs">+ Stall neu anlegen</button>
+                  <button type="button" onClick={() => { setCreateNewStable(true); setSelectedStableId(''); }} className={`w-full p-3 rounded-xl text-left text-sm font-bold border-2 border-dashed ${createNewStable ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-300 text-slate-400'}`}>+ Stall neu anlegen</button>
                 </div>
               )}
-              <input type="email" placeholder="E-Mail" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-              <input type="password" placeholder="Passwort" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+              <input type="email" placeholder="E-Mail" value={regEmail} onChange={e => setRegEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+              <input type="password" placeholder="Passwort" value={regPassword} onChange={e => setRegPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+              {authError && <p className="text-sm text-rose-600 font-medium">{authError}</p>}
               <div className="flex gap-4 mt-6">
-                <button type="button" onClick={() => setAuthState('REGISTER_CHOICE')} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-all">Zurück</button>
-                <button type="submit" className="flex-1 py-4 bg-slate-900 text-white font-bold rounded-xl shadow-xl hover:bg-slate-800 transition-all">Registrierung abschließen</button>
+                <button type="button" onClick={() => { setAuthState('REGISTER_CHOICE'); setAuthError(null); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-all">Zurück</button>
+                <button type="submit" disabled={authLoading} className="flex-1 py-4 bg-slate-900 text-white font-bold rounded-xl shadow-xl hover:bg-slate-800 transition-all disabled:opacity-60">Registrierung abschließen</button>
               </div>
             </form>
           </div>
@@ -215,14 +408,29 @@ const App: React.FC = () => {
         return (
           <div className="max-w-2xl mx-auto bg-white rounded-[3rem] p-12 shadow-xl border border-slate-100 animate-in slide-in-from-bottom-8">
             <h2 className="text-3xl font-bold mb-8">Tierarzt-Profil erstellen</h2>
-            <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); setAuthState('AUTHENTICATED'); }}>
-              <input type="text" placeholder="Praxis / Firmenname" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-              <input type="text" placeholder="Standort (PLZ)" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-              <input type="email" placeholder="E-Mail" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-              <input type="password" placeholder="Passwort" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
+            <form className="space-y-5" onSubmit={async (e) => {
+              e.preventDefault();
+              setAuthError(null);
+              setAuthLoading(true);
+              try {
+                await auth.signUpVet({ email: vetEmail, password: vetPassword, practiceName: vetPracticeName, zip: vetZip });
+                await loadProfileAndData();
+                setAuthState('AUTHENTICATED');
+                setVetPracticeName(''); setVetZip(''); setVetEmail(''); setVetPassword('');
+              } catch (err) {
+                setAuthError(err instanceof Error ? err.message : 'Registrierung fehlgeschlagen.');
+              } finally {
+                setAuthLoading(false);
+              }
+            }}>
+              <input type="text" placeholder="Praxis / Firmenname" value={vetPracticeName} onChange={e => setVetPracticeName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
+              <input type="text" placeholder="Standort (PLZ)" value={vetZip} onChange={e => setVetZip(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
+              <input type="email" placeholder="E-Mail" value={vetEmail} onChange={e => setVetEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
+              <input type="password" placeholder="Passwort" value={vetPassword} onChange={e => setVetPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
+              {authError && <p className="text-sm text-rose-600 font-medium">{authError}</p>}
               <div className="flex gap-4 mt-6">
-                <button type="button" onClick={() => { setAuthState('REGISTER_CHOICE'); setView(UserView.OWNER); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-all">Zurück</button>
-                <button type="submit" className="flex-1 py-4 bg-emerald-600 text-white font-bold rounded-xl shadow-xl hover:bg-emerald-700 transition-all">Account erstellen</button>
+                <button type="button" onClick={() => { setAuthState('REGISTER_CHOICE'); setView(UserView.OWNER); setAuthError(null); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-all">Zurück</button>
+                <button type="submit" disabled={authLoading} className="flex-1 py-4 bg-emerald-600 text-white font-bold rounded-xl shadow-xl hover:bg-emerald-700 transition-all disabled:opacity-60">Account erstellen</button>
               </div>
             </form>
           </div>
@@ -258,7 +466,7 @@ const App: React.FC = () => {
             <div className="w-28 h-28 bg-slate-800 rounded-full flex items-center justify-center text-4xl font-black border-4 border-slate-700 shadow-xl">M</div>
             <div>
               <h2 className="text-4xl font-black tracking-tight">{userSettings.firstName} {userSettings.lastName}</h2>
-              <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">{userSettings.stallName}</p>
+              <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">{stallDisplay || userSettings.stallName}</p>
             </div>
           </div>
           <div className="p-10 space-y-10">
@@ -279,9 +487,26 @@ const App: React.FC = () => {
                 </div>
               </div>
             </div>
+            {authError && <p className="text-sm text-rose-600 font-medium">{authError}</p>}
             <div className="flex gap-4">
-              <button onClick={() => setOwnerSubView('dashboard')} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-all">Abbrechen</button>
-              <button onClick={() => setOwnerSubView('dashboard')} className="flex-1 py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all">Speichern</button>
+              <button type="button" onClick={() => { setOwnerSubView('dashboard'); setAuthError(null); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-all">Abbrechen</button>
+              <button type="button" onClick={async () => {
+                setAuthError(null);
+                if (!profile) return;
+                try {
+                  const p = await auth.updateProfile({
+                    first_name: userSettings.firstName,
+                    last_name: userSettings.lastName,
+                    stall_name: userSettings.stallName || null,
+                    notify_vaccination: userSettings.notifyVaccination,
+                    notify_hoof: userSettings.notifyHoof,
+                  });
+                  setProfile(p);
+                  setOwnerSubView('dashboard');
+                } catch (e) {
+                  setAuthError(e instanceof Error ? e.message : 'Speichern fehlgeschlagen.');
+                }
+              }} className="flex-1 py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all">Speichern</button>
             </div>
           </div>
         </div>
@@ -333,7 +558,7 @@ const App: React.FC = () => {
                   <div className="absolute right-0 mt-3 w-60 bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 py-2 animate-in zoom-in-95 duration-200">
                     <button onClick={() => {setOwnerSubView('profile'); setShowProfileMenu(false);}} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Profil bearbeiten</button>
                     <button onClick={() => {setOwnerSubView('settings'); setShowProfileMenu(false);}} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Einstellungen</button>
-                    <div className="border-t border-slate-50 mt-2 pt-2"><button onClick={() => setAuthState('LANDING')} className="w-full text-left px-5 py-3 text-rose-600 font-bold hover:bg-rose-50 text-sm">Abmelden</button></div>
+                    <div className="border-t border-slate-50 mt-2 pt-2"><button onClick={async () => { await auth.signOut(); setAuthState('LANDING'); setProfile(null); setHorses([]); }} className="w-full text-left px-5 py-3 text-rose-600 font-bold hover:bg-rose-50 text-sm">Abmelden</button></div>
                   </div>
                 )}
               </div>
@@ -343,7 +568,9 @@ const App: React.FC = () => {
       </nav>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-8">
-        {authState === 'AUTHENTICATED' ? (view === UserView.VET ? <VetPortal /> : renderContent()) : renderAuth()}
+        {!authReady ? (
+          <div className="flex items-center justify-center min-h-[40vh] text-slate-400 font-medium">Laden…</div>
+        ) : authState === 'AUTHENTICATED' ? (view === UserView.VET ? <VetPortal /> : renderContent()) : renderAuth()}
       </main>
 
       {showAddHorseModal && (

@@ -58,3 +58,27 @@ export enum UserView {
   OWNER = 'OWNER',
   VET = 'VET'
 }
+
+export type ProfileRole = 'owner' | 'vet';
+
+export interface Profile {
+  id: string;
+  role: ProfileRole;
+  first_name: string | null;
+  last_name: string | null;
+  stall_name: string | null;
+  practice_name: string | null;
+  zip: string | null;
+  stable_id: string | null;
+  notify_vaccination: boolean;
+  notify_hoof: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Stable {
+  id: string;
+  name: string;
+  zip: string;
+  created_at?: string;
+}

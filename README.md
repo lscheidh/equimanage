@@ -31,9 +31,20 @@ View your app in AI Studio: https://ai.studio/apps/drive/1R08GICeC1iDZMdOT5OTH8S
    ```
 4. Im Browser **http://localhost:3000** öffnen.
 
+### Supabase (Auth & Datenbank, **erforderlich**)
+
+1. **Projekt in Supabase** anlegen (falls noch nicht geschehen).
+2. **Datenbank einrichten** – Anleitung und SQL siehe **[`supabase/DATENBANK-ANLEITUNG.md`](supabase/DATENBANK-ANLEITUNG.md)**. Dort werden Tabellen (`stables`, `profiles`, `horses`), RLS und Beispiel-Ställe beschrieben.
+3. **`.env.local`** im Projektroot anlegen:
+   ```env
+   VITE_SUPABASE_URL=https://dein-projekt.supabase.co
+   VITE_SUPABASE_ANON_KEY=dein-anon-key
+   ```
+   Werte aus **Supabase Dashboard → Settings → API** übernehmen.
+
 ### Optionale Konfiguration
 
-- **Gemini API:** Für KI-Funktionen `GEMINI_API_KEY` in einer Datei `.env.local` setzen (siehe [.env.local](.env.local)).
+- **Gemini / Claude API:** Für KI-Funktionen `GEMINI_API_KEY` bzw. `CLAUDE_API_KEY` in `.env.local` setzen.
 
 ---
 
