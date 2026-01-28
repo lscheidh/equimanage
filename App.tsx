@@ -48,6 +48,7 @@ const App: React.FC = () => {
   const [suggestedStables, setSuggestedStables] = useState<Stable[]>([]);
   const [selectedStableId, setSelectedStableId] = useState<string>('');
   const [createNewStable, setCreateNewStable] = useState(false);
+  const [newStallName, setNewStallName] = useState('');
 
   const [vetPracticeName, setVetPracticeName] = useState('');
   const [vetZip, setVetZip] = useState('');
@@ -359,9 +360,13 @@ const App: React.FC = () => {
                 setAuthError('Bitte wähle einen Stall oder „Stall neu anlegen“.');
                 return;
               }
+              if (createNewStable && !newStallName.trim()) {
+                setAuthError('Bitte gib einen Namen für den neuen Stall ein.');
+                return;
+              }
               setAuthLoading(true);
               try {
-                const stallName = createNewStable ? 'Neuer Stall' : (suggestedStables.find(s => s.id === selectedStableId)?.name ?? '');
+                const stallName = createNewStable ? newStallName.trim() : (suggestedStables.find(s => s.id === selectedStableId)?.name ?? '');
                 await auth.signUpOwner({
                   email: regEmail,
                   password: regPassword,
@@ -374,7 +379,7 @@ const App: React.FC = () => {
                 await loadProfileAndData();
                 setAuthState('AUTHENTICATED');
                 setRegZip(''); setRegFirstName(''); setRegLastName(''); setRegEmail(''); setRegPassword('');
-                setSelectedStableId(''); setCreateNewStable(false);
+                setSelectedStableId(''); setCreateNewStable(false); setNewStallName('');
               } catch (err) {
                 setAuthError(err instanceof Error ? err.message : 'Registrierung fehlgeschlagen.');
               } finally {
@@ -385,13 +390,20 @@ const App: React.FC = () => {
                 <input type="text" placeholder="Vorname" value={regFirstName} onChange={e => setRegFirstName(e.target.value)} className="p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
                 <input type="text" placeholder="Nachname" value={regLastName} onChange={e => setRegLastName(e.target.value)} className="p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
               </div>
-              <input type="text" value={regZip} onChange={e => { setRegZip(e.target.value); setCreateNewStable(false); setSelectedStableId(''); }} placeholder="Stall-Suche via PLZ" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+              <input type="text" value={regZip} onChange={e => { setRegZip(e.target.value); setCreateNewStable(false); setSelectedStableId(''); setNewStallName(''); }} placeholder="Stall-Suche via PLZ" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
               {regZip.length >= 2 && (
                 <div className="space-y-2 p-3 bg-indigo-50 rounded-2xl">
                   {suggestedStables.map(s => (
-                    <button key={s.id} type="button" onClick={() => { setSelectedStableId(s.id); setCreateNewStable(false); }} className={`w-full p-3 rounded-xl text-left text-sm font-bold border ${selectedStableId === s.id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}`}>{s.name}</button>
+                    <button key={s.id} type="button" onClick={() => { setSelectedStableId(s.id); setCreateNewStable(false); setNewStallName(''); }} className={`w-full p-3 rounded-xl text-left text-sm font-bold border ${selectedStableId === s.id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}`}>{s.name}</button>
                   ))}
-                  <button type="button" onClick={() => { setCreateNewStable(true); setSelectedStableId(''); }} className={`w-full p-3 rounded-xl text-left text-sm font-bold border-2 border-dashed ${createNewStable ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-300 text-slate-400'}`}>+ Stall neu anlegen</button>
+                  <button type="button" onClick={() => { setCreateNewStable(true); setSelectedStableId(''); setNewStallName(''); }} className={`w-full p-3 rounded-xl text-left text-sm font-bold border-2 border-dashed ${createNewStable ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-300 text-slate-400'}`}>+ Stall neu anlegen</button>
+                  {createNewStable && (
+                    <div className="pt-2 space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 block">Name des neuen Stalls</label>
+                      <input type="text" value={newStallName} onChange={e => setNewStallName(e.target.value)} placeholder="z.B. Reitstall Sonnenhof" className="w-full p-3 bg-white border-2 border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400" />
+                      <p className="text-xs text-slate-500">PLZ: {regZip} (aus Suche oben)</p>
+                    </div>
+                  )}
                 </div>
               )}
               <input type="email" placeholder="E-Mail" value={regEmail} onChange={e => setRegEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
@@ -413,7 +425,13 @@ const App: React.FC = () => {
               setAuthError(null);
               setAuthLoading(true);
               try {
-                await auth.signUpVet({ email: vetEmail, password: vetPassword, practiceName: vetPracticeName, zip: vetZip });
+                const res = await auth.signUpVet({ email: vetEmail, password: vetPassword, practiceName: vetPracticeName, zip: vetZip });
+                if (!res.session) {
+                  setAuthError(null);
+                  setVetPracticeName(''); setVetZip(''); setVetEmail(''); setVetPassword('');
+                  setAuthError('Bitte bestätige deine E-Mail (Link in der Inbox). Anschließend kannst du dich anmelden.');
+                  return;
+                }
                 await loadProfileAndData();
                 setAuthState('AUTHENTICATED');
                 setVetPracticeName(''); setVetZip(''); setVetEmail(''); setVetPassword('');

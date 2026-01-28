@@ -130,6 +130,40 @@ Falls eine ältere Postgres-Version `EXECUTE FUNCTION` nicht unterstützt, statt
 
 ---
 
+## 3b. Trigger für Tierarzt-Profil (wichtig für Tierarzt-Registrierung)
+
+Damit sich Tierärzte zuverlässig registrieren können (auch bei aktivierter E-Mail-Bestätigung), wird das Profil per **Trigger** bei `auth.users` INSERT angelegt. Skript ausführen:
+
+```sql
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.raw_user_meta_data->>'role' = 'vet' THEN
+    INSERT INTO public.profiles (id, role, practice_name, zip)
+    VALUES (
+      NEW.id,
+      'vet',
+      COALESCE(NEW.raw_user_meta_data->>'practice_name', ''),
+      COALESCE(NEW.raw_user_meta_data->>'zip', '')
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
+```
+
+---
+
 ## 4. Prüfen
 
 - **Table Editor**: Tabellen `stables`, `profiles`, `horses` vorhanden.
@@ -160,3 +194,11 @@ Die Werte aus **Supabase Dashboard → Settings → API** übernehmen. Optional 
 | `horses` | Pferde; `vaccinations` und `service_history` als JSONB |
 
 **Auth** läuft über Supabase Auth (E-Mail/Passwort). Die App legt nach der Registrierung einen Eintrag in `profiles` an.
+
+### „Stall neu anlegen“ bei Registrierung
+
+Beim Anlegen eines neuen Stalls werden Name und PLZ in `stables` gespeichert. Die bestehende Tabelle (`name`, `zip`) reicht aus – **keine Anpassung in der Datenbank nötig**.
+
+### Tierarzt-Registrierung
+
+Das Tierarzt-Profil wird per **Trigger** `handle_new_user` angelegt (Schritt 3b). Ohne diesen Trigger schlägt die Registrierung u. a. bei aktivierter E-Mail-Bestätigung fehl.

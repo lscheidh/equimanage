@@ -74,16 +74,8 @@ export async function signUpVet(data: RegisterVetInput) {
     },
   });
   if (authError) throw authError;
-  const uid = authData.user?.id;
-  if (!uid) throw new Error('Registrierung fehlgeschlagen.');
-
-  const { error: profileError } = await supabase.from('profiles').insert({
-    id: uid,
-    role: 'vet',
-    practice_name: data.practiceName,
-    zip: data.zip,
-  });
-  if (profileError) throw profileError;
+  if (!authData.user?.id) throw new Error('Registrierung fehlgeschlagen.');
+  // Profil wird per DB-Trigger (handle_new_user) angelegt – unabhängig von E-Mail-Bestätigung.
   return authData;
 }
 
