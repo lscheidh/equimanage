@@ -1,0 +1,60 @@
+
+export enum ComplianceStatus {
+  GREEN = 'GREEN',   // Aktuell
+  YELLOW = 'YELLOW',  // Bald fällig
+  RED = 'RED'        // Überfällig
+}
+
+export interface Vaccination {
+  id: string;
+  type: string;
+  date: string;
+  vetName: string;
+  isBooster: boolean;
+  sequence?: 'V1' | 'V2' | 'V3' | 'Booster';
+  status: 'verified' | 'pending';
+}
+
+export type ServiceType = 'Hufschmied' | 'Entwurmung' | 'Zahnarzt' | 'Physio' | 'Sonstiges';
+
+export interface ServiceRecord {
+  id: string;
+  type: ServiceType;
+  date: string;
+  notes?: string;
+  provider?: string;
+}
+
+export interface Horse {
+  id: string;
+  name: string;
+  breed: string;
+  birthYear: number;
+  isoNr: string;
+  feiNr: string;
+  chipId: string;
+  ownerId: string;
+  ownerName: string;
+  gender: 'Hengst' | 'Stute' | 'Wallach';
+  color: string;
+  breedingAssociation: string;
+  image: string;
+  vaccinations: Vaccination[];
+  serviceHistory: ServiceRecord[];
+  weightKg: number;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  horseId: string;
+  assignedTo: string;
+  dueDate: string;
+  completed: boolean;
+  priority: 'Low' | 'Medium' | 'High';
+}
+
+export enum UserView {
+  OWNER = 'OWNER',
+  VET = 'VET'
+}

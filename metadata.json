@@ -1,0 +1,8 @@
+{
+  "name": "EquiManage",
+  "description": "An integrated digital platform for horse management, ensuring FEI compliance, health monitoring, and veterinarian communication.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
