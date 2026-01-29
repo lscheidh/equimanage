@@ -62,10 +62,15 @@ export interface VaccComplianceResult {
 }
 
 /**
- * Pro Impfkategorie (type) werden Impfungen nach Datum sortiert und Intervallregeln geprüft:
- * V1→V2: 28–70 Tage; V2→V3, V3→Booster, Booster→Booster: 6 Monate + 21 Tage.
- * Status „konform“ nur, wenn alle Intervalle eingehalten sind. Fälligkeit wie bisher.
- * Mitteilungen: Impfkategorie + Sequenz; fällig: „bis DD.MM.YYYY (X Tage)“; kritisch: „seit DD.MM.YYYY (X Tage überfällig)“.
+ * Impf-Fälligkeit pro Kategorie (type). Zwei Nutzungsweisen:
+ *
+ * 1. Vollständige Historie: V1→V2→V3→Booster. Fälligkeit aus letzter Impfung, Intervallprüfung
+ *    (V1→V2: 28–70 Tage; V2→V3, V3→Booster, Booster→Booster: 6 Mon + 21 Tage).
+ *
+ * 2. Nur letzte Booster-Impfung: Ein Eintrag pro Typ mit sequence Booster / isBooster. Keine
+ *    V1/V2/V3 nötig. Fälligkeit = Booster-Datum + 6 Mon + 21 Tage; konform bis Ablauf.
+ *
+ * Mitteilungen: Kategorie + Sequenz; fällig: „bis DD.MM.YYYY (X Tage)“; kritisch: „seit DD.MM.YYYY (X Tage überfällig)“.
  */
 export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
   const byType = new Map<string, Vaccination[]>();
@@ -100,49 +105,55 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
     const seq = last.sequence || (last.isBooster ? 'Booster' : 'V1');
     const d = daysSince(lastDate);
 
+    const onlyBooster =
+      list.length === 1 && (seq === 'Booster' || last.isBooster);
+
     let dueMin: number;
     let dueMax: number;
     let phase: string;
+    let intervalOk = true;
 
-    if (seq === 'V1') {
+    if (onlyBooster) {
+      dueMin = dueMax = DAYS_BOOSTER_AFTER_V3;
+      phase = 'Booster';
+    } else if (seq === 'V1') {
       dueMin = DAYS_V2_MIN;
       dueMax = DAYS_V2_MAX;
       phase = 'V2';
     } else if (seq === 'V2') {
       dueMin = dueMax = DAYS_V3_AFTER_V2;
       phase = 'V3';
+      if (list.length < 2) intervalOk = false;
+      else {
+        const prev = new Date(list[1].date);
+        prev.setHours(0, 0, 0, 0);
+        const gap = daysBetween(prev, lastDate);
+        if (gap < DAYS_V2_MIN || gap > DAYS_V2_MAX) intervalOk = false;
+      }
     } else {
-      dueMin = dueMax = DAYS_BOOSTER_AFTER_V3;
+      dueMin = dueMax = seq === 'V3' ? DAYS_V3_AFTER_V2 : DAYS_BOOSTER_AFTER_V3;
       phase = 'Booster';
+      if (list.length >= 2) {
+        const prev = new Date(list[1].date);
+        prev.setHours(0, 0, 0, 0);
+        const gap = daysBetween(prev, lastDate);
+        const required = seq === 'V3' ? DAYS_V3_AFTER_V2 : DAYS_BOOSTER_AFTER_V3;
+        if (gap < required) intervalOk = false;
+      }
     }
 
     const dueDateMin = addDays(lastDate, dueMin);
     const dueDateMax = addDays(lastDate, dueMax);
     const notifyFrom = dueMin - NOTIFY_DAYS_BEFORE;
 
-    // V2 ohne V1: immer nicht konform. V3/Booster allein: gültig (kein Vorimpfung nötig).
-    let intervalOk = true;
-    if (seq === 'V2' && list.length < 2) {
-      intervalOk = false;
-    } else if (seq === 'V2' && list.length >= 2) {
-      const prev = new Date(list[1].date);
-      prev.setHours(0, 0, 0, 0);
-      const gap = daysBetween(prev, lastDate);
-      if (gap < DAYS_V2_MIN || gap > DAYS_V2_MAX) intervalOk = false;
-    } else if ((seq === 'V3' || seq === 'Booster') && list.length >= 2) {
-      const prev = new Date(list[1].date);
-      prev.setHours(0, 0, 0, 0);
-      const gap = daysBetween(prev, lastDate);
-      const required = seq === 'V3' ? DAYS_V3_AFTER_V2 : DAYS_BOOSTER_AFTER_V3;
-      if (gap < required) intervalOk = false;
-    }
-
-    const label = seq === 'V2' && list.length < 2 ? `V2 ${type}` : `${phase} ${type}`;
+    const label =
+      seq === 'V2' && list.length < 2 ? `V2 ${type}` : `${phase} ${type}`;
 
     if (!intervalOk) {
-      const msg = seq === 'V2' && list.length < 2
-        ? `${label}: ohne V1 – nicht konform.`
-        : `${label}: Abstand zur Vorimpfung nicht eingehalten.`;
+      const msg =
+        seq === 'V2' && list.length < 2
+          ? `${label}: ohne V1 – nicht konform.`
+          : `${label}: Abstand zur Vorimpfung nicht eingehalten.`;
       dueItems.push({ type, sequence: phase, status: ComplianceStatus.RED, message: msg });
       if (worstStatus === ComplianceStatus.GREEN || worstStatus === ComplianceStatus.YELLOW) {
         worstStatus = ComplianceStatus.RED;
@@ -167,9 +178,10 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
       const daysLeft = dueMin - d;
       const endDate = dueDateMax;
       const daysLeftToEnd = Math.max(0, Math.floor((endDate.getTime() - Date.now()) / (1000 * 3600 * 24)));
-      const msg = daysLeft <= 0
-        ? `${label} fällig bis ${formatDate(endDate)} (${daysLeftToEnd} Tage)`
-        : `${label} in ${daysLeft} Tagen fällig bis ${formatDate(endDate)} (${daysLeftToEnd} Tage)`;
+      const msg =
+        daysLeft <= 0
+          ? `${label} fällig bis ${formatDate(endDate)} (${daysLeftToEnd} Tage)`
+          : `${label} in ${daysLeft} Tagen fällig bis ${formatDate(endDate)} (${daysLeftToEnd} Tage)`;
       dueItems.push({ type, sequence: phase, status: ComplianceStatus.YELLOW, message: msg });
       if (worstStatus === ComplianceStatus.GREEN) {
         worstStatus = ComplianceStatus.YELLOW;

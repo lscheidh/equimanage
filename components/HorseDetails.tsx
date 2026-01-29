@@ -209,9 +209,14 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
         {/* Historie Panels */}
         <div className="lg:col-span-2 space-y-8">
           <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-8 border-b border-slate-50 flex justify-between items-center">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight">Impfhistorie</h3>
-              <button onClick={() => openEntryModal('vacc')} className="px-5 py-2 text-xs font-black text-emerald-600 bg-emerald-50 rounded-2xl hover:bg-emerald-100 transition-all">+ NEU</button>
+            <div className="p-8 border-b border-slate-50">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">Impfhistorie</h3>
+                <button onClick={() => openEntryModal('vacc')} className="px-5 py-2 text-xs font-black text-emerald-600 bg-emerald-50 rounded-2xl hover:bg-emerald-100 transition-all">+ NEU</button>
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                Vollständige Serie (V1→V2→V3→Booster) oder nur letzte Booster-Impfung pro Typ – Fälligkeit wird jeweils korrekt berechnet.
+              </p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -372,6 +377,11 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
             {showVaccModal && editingItem && (editingItem as Vaccination).status === 'planned' && (
               <p className="text-sm text-slate-500 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3">Impfung durchgeführt? Datum prüfen, bestätigen und aktivieren.</p>
             )}
+            {showVaccModal && !editingItem && (
+              <p className="text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3">
+                <strong>Vollständige Serie</strong> (V1→V2→V3→Booster) oder <strong>nur letzte Booster-Impfung</strong> pro Typ – beides möglich. Bei nur Booster: ein Eintrag pro Kategorie mit Sequenz „Booster“, Fälligkeit = Datum + 6 Mon. + 21 Tage.
+              </p>
+            )}
             {!editingItem && (
               <label className="flex items-center gap-4 p-4 bg-slate-50 rounded-[1.5rem] cursor-pointer hover:bg-slate-100 transition-all border border-slate-100">
                 <input type="checkbox" checked={isBulkEntry} onChange={e => setIsBulkEntry(e.target.checked)} className="w-6 h-6 rounded-lg border-slate-300 text-indigo-600 focus:ring-indigo-500" />
@@ -417,7 +427,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                     <input readOnly value={entryData.sequence ?? '—'} className="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-700" />
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
-                      {[{ id: 'V1', label: 'V1', hint: '1. Grundimm.' }, { id: 'V2', label: 'V2', hint: '2. Grundimm. (28–70 Tage)' }, { id: 'V3', label: 'V3', hint: '6 Mon. + 21 Tage nach V2' }, { id: 'Booster', label: 'Booster', hint: '6 Mon. + 21 Tage nach V3' }].map(seq => (
+                      {[{ id: 'V1', label: 'V1', hint: '1. Grundimm.' }, { id: 'V2', label: 'V2', hint: '2. Grundimm. (28–70 Tage)' }, { id: 'V3', label: 'V3', hint: '6 Mon. + 21 Tage nach V2' }, { id: 'Booster', label: 'Booster', hint: '6 Mon. + 21 Tage nach V3; oder nur letzter Booster' }].map(seq => (
                         <button key={seq.id} type="button" onClick={() => setEntryData({...entryData, sequence: seq.id as any})} className={`p-3 rounded-2xl border-2 text-left transition-all ${entryData.sequence === seq.id ? 'border-indigo-600 bg-indigo-50 shadow-sm' : 'border-slate-100 bg-white'}`}><p className="font-black text-xs">{seq.label}</p><p className="text-[9px] text-slate-400 leading-tight">{seq.hint}</p></button>
                       ))}
                     </div>
