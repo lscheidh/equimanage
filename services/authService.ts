@@ -95,6 +95,21 @@ export async function getSession() {
   return data.session;
 }
 
+export async function getCurrentUserEmail(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.email ?? null;
+}
+
+export async function updateAuthEmail(email: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ email });
+  if (error) throw error;
+}
+
+export async function updateAuthPassword(password: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw error;
+}
+
 /**
  * Legt ein Profil aus user_metadata an, falls es fehlt (z. B. Trigger nicht ausgeführt
  * oder Owner-Insert fehlgeschlagen). Idempotent bei Duplikat.
