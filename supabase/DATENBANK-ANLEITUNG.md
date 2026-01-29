@@ -223,4 +223,9 @@ Damit Besitzer in der Stallübersicht unter **Termin vereinbaren** nach registri
 
 ### Terminanfragen (Tierarzt-Dashboard)
 
-Damit Besitzer Anfragen an Tierärzte senden und Tierärzte diese im Dashboard einsehen können, muss die Migration **`005_appointment_requests.sql`** ausgeführt werden. Sie legt die Tabelle **`appointment_requests`** an (vet_id, owner_id, payload JSONB) sowie RLS-Policies (Vets: SELECT eigene; Owner: INSERT eigene).
+Damit Besitzer Anfragen an Tierärzte senden und Tierärzte diese im Dashboard einsehen können, müssen die Migrationen **`005_appointment_requests.sql`** und **`006_appointment_requests_status.sql`** ausgeführt werden.
+
+- **005**: Tabelle **`appointment_requests`** (vet_id, owner_id, payload JSONB), RLS (Vets: SELECT; Owner: INSERT).
+- **006**: Spalten **status** (pending/accepted/rejected), **scheduled_date**, **vet_response_at**, **owner_confirmed_at**; RLS für Owner SELECT sowie Vet-/Owner-UPDATE.
+
+**E-Mail an Tierarzt:** Die App ruft nach „Anfrage senden“ optional die Edge Function `notify-vet-request` auf. Stub liegt unter `supabase/functions/notify-vet-request/`. Deployment: `supabase functions deploy notify-vet-request`. Dort kann z. B. E-Mail-Versand (Resend o. Ä.) ergänzt werden.

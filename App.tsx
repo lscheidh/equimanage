@@ -6,8 +6,10 @@ import { ActionDashboard } from './components/ActionDashboard';
 import { HorseDetails } from './components/HorseDetails';
 import { VetPortal } from './components/VetPortal';
 import { TerminVereinbarenModal } from './components/TerminVereinbarenModal';
+import { OwnerTerminanfragen } from './components/OwnerTerminanfragen';
 import { checkVaccinationCompliance, checkHoofCareStatus } from './logic';
 import * as auth from './services/authService';
+import * as appointmentRequestService from './services/appointmentRequestService';
 import * as horseService from './services/horseService';
 import { HORSE_PLACEHOLDER_IMAGE, uploadHorseImage } from './services/horseImageService';
 import { supabase } from './services/supabase';
@@ -358,6 +360,51 @@ const App: React.FC = () => {
     if (u) { await persistHorse(u); if (selectedHorse?.id === horseId) setSelectedHorse(u); }
   };
 
+  const handleConfirmAppointmentRequest = useCallback(async (req: appointmentRequestService.AppointmentRequestRow) => {
+    if (!profile || profile.role !== 'owner' || !req.scheduled_date) return;
+    await appointmentRequestService.updateAppointmentRequestOwnerConfirm(profile.id, req.id);
+    const vetName = req.payload.vet?.practiceName ?? 'Tierarzt';
+    const date = req.scheduled_date;
+
+    for (const ph of req.payload.horses) {
+      const horse = horses.find((h) => h.id === ph.horseId);
+      if (!horse) continue;
+      const toAdd: Vaccination[] = [];
+
+      if (ph.noVaccData && ph.selectedCategories?.length) {
+        for (const type of ph.selectedCategories) {
+          toAdd.push({
+            id: crypto.randomUUID(),
+            type,
+            date,
+            vetName,
+            isBooster: false,
+            sequence: 'V1',
+            status: 'planned',
+          });
+        }
+      } else if (ph.selectedDueItems?.length) {
+        for (const d of ph.selectedDueItems) {
+          toAdd.push({
+            id: crypto.randomUUID(),
+            type: d.type,
+            date,
+            vetName,
+            isBooster: d.sequence === 'Booster',
+            sequence: d.sequence as Vaccination['sequence'],
+            status: 'planned',
+          });
+        }
+      }
+
+      if (toAdd.length === 0) continue;
+      const next = { ...horse, vaccinations: [...toAdd, ...horse.vaccinations] };
+      setHorses(prev => prev.map(h => (h.id === horse.id ? next : h)));
+      if (selectedHorse?.id === horse.id) setSelectedHorse(next);
+      await persistHorse(next);
+    }
+  }, [profile, horses, selectedHorse, persistHorse]);
+
   const handleDeleteHorse = async (id: string) => {
     if (!profile) return;
     try {
@@ -698,7 +745,15 @@ const App: React.FC = () => {
     return (
       <div className="space-y-6">
         {ownerSubView === 'dashboard' ? (
-          <ActionDashboard horses={horses} onSelectHorse={setSelectedHorse} onGoToStable={() => setOwnerSubView('stableOverview')} />
+          <>
+            <OwnerTerminanfragen
+              profile={profile}
+              horses={horses}
+              onConfirmRequest={handleConfirmAppointmentRequest}
+              onSelectHorse={setSelectedHorse}
+            />
+            <ActionDashboard horses={horses} onSelectHorse={setSelectedHorse} onGoToStable={() => setOwnerSubView('stableOverview')} />
+          </>
         ) : (
           <HealthDashboard horses={horses} onSelectHorse={setSelectedHorse} onAddNewHorse={() => { setHorseError(null); setShowAddHorseModal(true); }} onTerminVereinbaren={() => setShowTerminModal(true)} onGoToDashboard={() => setOwnerSubView('dashboard')} />
         )}
