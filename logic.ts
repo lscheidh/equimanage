@@ -22,7 +22,7 @@ const DAYS_V3_AFTER_V2 = 6 * 30 + 21;
 const DAYS_BOOSTER_AFTER_V3 = 6 * 30 + 21;
 const NOTIFY_DAYS_BEFORE = 14;
 
-const VACC_TYPES = ['Influenza', 'Herpes', 'Tetanus', 'West-Nil-Virus'] as const;
+export const VACC_TYPES = ['Influenza', 'Herpes', 'Tetanus', 'West-Nil-Virus'] as const;
 
 function daysBetween(a: Date, b: Date): number {
   return Math.floor((b.getTime() - a.getTime()) / (1000 * 3600 * 24));

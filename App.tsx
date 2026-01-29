@@ -784,7 +784,7 @@ const App: React.FC = () => {
               </button>
             </div>
           </div>
-        ) : authState === 'AUTHENTICATED' ? (profile?.role === 'vet' ? <VetPortal /> : renderContent()) : renderAuth()}
+        ) : authState === 'AUTHENTICATED' ? (profile?.role === 'vet' ? <VetPortal profile={profile} /> : renderContent()) : renderAuth()}
       </main>
 
       {showTerminModal && profile?.role === 'owner' && (

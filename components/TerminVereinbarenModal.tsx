@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { jsPDF } from 'jspdf';
 import { Horse, ComplianceStatus, Profile } from '../types';
-import { checkVaccinationCompliance, getStatusColor } from '../logic';
+import { checkVaccinationCompliance, getStatusColor, VACC_TYPES } from '../logic';
+import type { DueItem } from '../logic';
 import * as auth from '../services/authService';
+import * as appointmentRequestService from '../services/appointmentRequestService';
 import { supabase } from '../services/supabase';
 
 interface TerminVereinbarenModalProps {
@@ -11,16 +13,25 @@ interface TerminVereinbarenModalProps {
   onClose: () => void;
 }
 
+function dueItemKey(d: DueItem): string {
+  return `${d.type}|${d.sequence}`;
+}
+
 export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
   horses,
   profile,
   onClose,
 }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedCategoriesByHorse, setSelectedCategoriesByHorse] = useState<Record<string, string[]>>({});
+  const [selectedDueItemKeysByHorse, setSelectedDueItemKeysByHorse] = useState<Record<string, string[]>>({});
   const [vetQuery, setVetQuery] = useState('');
+  const [selectedVetId, setSelectedVetId] = useState<string | null>(null);
   const [allVets, setAllVets] = useState<auth.VetSearchResult[]>([]);
   const [vetsLoading, setVetsLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [sendLoading, setSendLoading] = useState(false);
+  const [sendSuccess, setSendSuccess] = useState(false);
 
   const vetResults = useMemo(
     () => auth.filterVets(allVets, vetQuery),
@@ -35,17 +46,65 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
   }, [horses]);
 
   const toggleHorse = useCallback((id: string) => {
+    const horse = dueHorses.find((h) => h.id === id);
+    if (!horse) return;
+    const c = checkVaccinationCompliance(horse);
+    const noData = c.dueItems.length === 0;
+
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+        setSelectedCategoriesByHorse((s) => { const u = { ...s }; delete u[id]; return u; });
+        setSelectedDueItemKeysByHorse((s) => { const u = { ...s }; delete u[id]; return u; });
+        return next;
+      }
+      next.add(id);
+      if (noData) {
+        setSelectedCategoriesByHorse((s) => ({ ...s, [id]: [...VACC_TYPES] }));
+      } else {
+        setSelectedDueItemKeysByHorse((s) => ({
+          ...s,
+          [id]: c.dueItems.map(dueItemKey),
+        }));
+      }
       return next;
+    });
+  }, [dueHorses]);
+
+  const toggleCategory = useCallback((horseId: string, cat: string) => {
+    setSelectedCategoriesByHorse((prev) => {
+      const arr = prev[horseId] ?? [];
+      const next = arr.includes(cat) ? arr.filter((x) => x !== cat) : [...arr, cat];
+      return { ...prev, [horseId]: next };
+    });
+  }, []);
+
+  const toggleDueItemKey = useCallback((horseId: string, key: string) => {
+    setSelectedDueItemKeysByHorse((prev) => {
+      const arr = prev[horseId] ?? [];
+      const next = arr.includes(key) ? arr.filter((x) => x !== key) : [...arr, key];
+      return { ...prev, [horseId]: next };
     });
   }, []);
 
   const selectAll = useCallback(() => {
-    if (selectedIds.size === dueHorses.length) setSelectedIds(new Set());
-    else setSelectedIds(new Set(dueHorses.map((h) => h.id)));
+    if (selectedIds.size === dueHorses.length) {
+      setSelectedIds(new Set());
+      setSelectedCategoriesByHorse({});
+      setSelectedDueItemKeysByHorse({});
+      return;
+    }
+    setSelectedIds(new Set(dueHorses.map((h) => h.id)));
+    const cats: Record<string, string[]> = {};
+    const keys: Record<string, string[]> = {};
+    for (const h of dueHorses) {
+      const c = checkVaccinationCompliance(h);
+      if (c.dueItems.length === 0) cats[h.id] = [...VACC_TYPES];
+      else keys[h.id] = c.dueItems.map(dueItemKey);
+    }
+    setSelectedCategoriesByHorse(cats);
+    setSelectedDueItemKeysByHorse(keys);
   }, [dueHorses, selectedIds.size]);
 
   useEffect(() => {
@@ -69,8 +128,68 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
     return () => { cancelled = true; };
   }, []);
 
+  const buildPayload = useCallback((): appointmentRequestService.AppointmentRequestPayload['horses'] => {
+    const out: appointmentRequestService.AppointmentRequestPayload['horses'] = [];
+    for (const horse of dueHorses) {
+      if (!selectedIds.has(horse.id)) continue;
+      const c = checkVaccinationCompliance(horse);
+      const noData = c.dueItems.length === 0;
+      const cats = selectedCategoriesByHorse[horse.id] ?? [];
+      const keys = selectedDueItemKeysByHorse[horse.id] ?? [];
+      if (noData && cats.length === 0) continue;
+      if (!noData && keys.length === 0) continue;
+      const base = {
+        horseId: horse.id,
+        name: horse.name,
+        isoNr: horse.isoNr,
+        chipId: horse.chipId ?? '—',
+        breed: horse.breed ?? '—',
+        birthYear: horse.birthYear,
+        noVaccData: noData,
+      };
+      if (noData) {
+        out.push({ ...base, selectedCategories: cats });
+      } else {
+        const items = c.dueItems.filter((d) => keys.includes(dueItemKey(d)));
+        out.push({
+          ...base,
+          selectedDueItems: items.map((d) => ({ type: d.type, sequence: d.sequence, message: d.message })),
+        });
+      }
+    }
+    return out;
+  }, [dueHorses, selectedIds, selectedCategoriesByHorse, selectedDueItemKeysByHorse]);
+
+  const payloadHorses = useMemo(() => buildPayload(), [buildPayload]);
+  const canSend = selectedVetId != null && profile?.id && payloadHorses.length > 0;
+
+  const sendRequest = useCallback(async () => {
+    if (!canSend || !profile) return;
+    setSendLoading(true);
+    setSendSuccess(false);
+    try {
+      await appointmentRequestService.createAppointmentRequest(profile.id, selectedVetId!, {
+        owner: {
+          firstName: profile.first_name ?? '',
+          lastName: profile.last_name ?? '',
+          stallName: profile.stall_name ?? null,
+          zip: profile.zip ?? null,
+          email: userEmail ?? null,
+        },
+        horses: payloadHorses,
+      });
+      setSendSuccess(true);
+      setSelectedVetId(null);
+    } catch (e) {
+      console.error(e);
+      alert('Anfrage konnte nicht gesendet werden. Bitte erneut versuchen.');
+    } finally {
+      setSendLoading(false);
+    }
+  }, [canSend, profile, selectedVetId, userEmail, payloadHorses]);
+
   const exportPdf = useCallback(() => {
-    const toExport = dueHorses.filter((h) => selectedIds.has(h.id));
+    const toExport = payloadHorses;
     if (toExport.length === 0) return;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = doc.getPageWidth();
@@ -101,26 +220,27 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
     if (userEmail) push(`E-Mail: ${userEmail}`);
     y += 6;
 
-    for (const horse of toExport) {
+    for (const h of toExport) {
       if (y > 260) {
         doc.addPage();
         y = 18;
       }
-      const c = checkVaccinationCompliance(horse);
-      push(horse.name, { font: 'bold' });
-      push(`ISO-Nr. (UELN): ${horse.isoNr}`);
-      if (horse.chipId && horse.chipId !== '—') push(`Chip-ID: ${horse.chipId}`);
-      push(`Rasse: ${horse.breed || '—'}`);
-      push(`Geburtsjahr: ${horse.birthYear}`);
+      push(h.name, { font: 'bold' });
+      push(`ISO-Nr. (UELN): ${h.isoNr}`);
+      if (h.chipId && h.chipId !== '—') push(`Chip-ID: ${h.chipId}`);
+      push(`Rasse: ${h.breed}`);
+      push(`Geburtsjahr: ${h.birthYear}`);
       push('Benötigte Impfungen:');
-      for (const di of c.dueItems) {
-        push(`• ${di.message}`, { size: 9 });
+      if (h.noVaccData && h.selectedCategories?.length) {
+        for (const cat of h.selectedCategories) push(`• Impfung: ${cat}`, { size: 9 });
+      } else if (h.selectedDueItems?.length) {
+        for (const di of h.selectedDueItems) push(`• ${di.message}`, { size: 9 });
       }
       y += 4;
     }
 
     doc.save('EquiManage-Impfuebersicht-Tierarzt.pdf');
-  }, [profile, userEmail, dueHorses, selectedIds]);
+  }, [profile, userEmail, payloadHorses]);
 
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose} role="presentation">
@@ -138,7 +258,7 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
         <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
           <section>
             <p className="text-sm text-slate-600 mb-3">
-              Wähle die Pferde, die beim angefragten Termin geimpft werden sollen (Status fällig bzw. kritisch).
+              Wähle die Pferde, die beim angefragten Termin geimpft werden sollen (Status fällig bzw. kritisch). Pro Pferd kannst du Impfkategorien bzw. fällige Impfungen einzeln auswählen.
             </p>
             {dueHorses.length === 0 ? (
               <p className="text-slate-500 py-6 text-center">Derzeit sind keine Pferde mit fälligen oder kritischen Impfungen vorhanden.</p>
@@ -155,13 +275,18 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
                   {dueHorses.map((horse) => {
                     const c = checkVaccinationCompliance(horse);
                     const checked = selectedIds.has(horse.id);
+                    const noData = c.dueItems.length === 0;
+                    const cats = selectedCategoriesByHorse[horse.id] ?? [];
+                    const keys = selectedDueItemKeysByHorse[horse.id] ?? [];
                     return (
                       <li
                         key={horse.id}
-                        className={`border-2 rounded-2xl p-4 transition-all cursor-pointer ${checked ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-100 hover:border-slate-200'}`}
-                        onClick={() => toggleHorse(horse.id)}
+                        className={`border-2 rounded-2xl overflow-hidden transition-all ${checked ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-100 hover:border-slate-200'}`}
                       >
-                        <div className="flex items-start gap-3">
+                        <div
+                          className="p-4 cursor-pointer flex items-start gap-3"
+                          onClick={() => toggleHorse(horse.id)}
+                        >
                           <input
                             type="checkbox"
                             checked={checked}
@@ -176,13 +301,71 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
                                 {c.status === ComplianceStatus.RED ? 'kritisch' : 'fällig'}
                               </span>
                             </div>
-                            <ul className="mt-1.5 space-y-0.5 text-sm text-slate-600">
-                              {c.dueItems.map((di, j) => (
-                                <li key={j}>{di.message}</li>
-                              ))}
-                            </ul>
+                            {!noData && (
+                              <ul className="mt-1.5 space-y-0.5 text-sm text-slate-600">
+                                {c.dueItems.map((di, j) => (
+                                  <li key={j}>{di.message}</li>
+                                ))}
+                              </ul>
+                            )}
+                            {noData && (
+                              <p className="mt-1 text-xs text-slate-500">Keine Impfdaten hinterlegt.</p>
+                            )}
                           </div>
                         </div>
+                        {checked && (
+                          <div
+                            className="border-t border-indigo-100 bg-white/80 px-4 pb-4 pt-3"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                              {noData ? 'Impfkategorien auswählen' : 'Fällige / kritische Impfungen auswählen'}
+                            </p>
+                            {noData ? (
+                              <div className="flex flex-wrap gap-2">
+                                {VACC_TYPES.map((t) => (
+                                  <label
+                                    key={t}
+                                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border-2 cursor-pointer transition-all text-sm font-medium ${
+                                      cats.includes(t) ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 bg-slate-50 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={cats.includes(t)}
+                                      onChange={() => toggleCategory(horse.id, t)}
+                                      className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600"
+                                    />
+                                    <span>{t}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap gap-2">
+                                {c.dueItems.map((di) => {
+                                  const key = dueItemKey(di);
+                                  const sel = keys.includes(key);
+                                  return (
+                                    <label
+                                      key={key}
+                                      className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border-2 cursor-pointer transition-all text-sm max-w-full ${
+                                        sel ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 bg-slate-50 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={sel}
+                                        onChange={() => toggleDueItemKey(horse.id, key)}
+                                        className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 shrink-0"
+                                      />
+                                      <span className="truncate">{di.message}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </li>
                     );
                   })}
@@ -193,11 +376,11 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
 
           <section className="border-t border-slate-100 pt-6">
             <h4 className="text-sm font-bold text-slate-800 mb-2">Tierarzt suchen</h4>
-            <p className="text-xs text-slate-500 mb-3">Nach Postleitzahl oder Praxis- bzw. Firmennamen suchen.</p>
+            <p className="text-xs text-slate-500 mb-3">Nach Postleitzahl oder Praxis- bzw. Firmennamen suchen. Klicke einen Eintrag, um die Anfrage an diesen Tierarzt zu senden.</p>
             <input
               type="text"
               value={vetQuery}
-              onChange={(e) => setVetQuery(e.target.value)}
+              onChange={(e) => { setVetQuery(e.target.value); setSelectedVetId(null); }}
               placeholder="PLZ oder Name der Praxis"
               className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500"
             />
@@ -208,13 +391,32 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
                   <li className="text-sm text-slate-500 py-2">Keine Tierärzte gefunden.</li>
                 ) : (
                   vetResults.map((v) => (
-                    <li key={v.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl text-sm">
+                    <li
+                      key={v.id}
+                      onClick={() => setSelectedVetId((prev) => (prev === v.id ? null : v.id))}
+                      className={`flex justify-between items-center p-3 rounded-xl text-sm cursor-pointer transition-all ${
+                        selectedVetId === v.id ? 'bg-indigo-100 border-2 border-indigo-500' : 'bg-slate-50 hover:bg-slate-100'
+                      }`}
+                    >
                       <span className="font-medium text-slate-800">{v.practice_name || '—'}</span>
                       <span className="text-slate-500">{v.zip || '—'}</span>
                     </li>
                   ))
                 )}
               </ul>
+            )}
+            {canSend && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={sendRequest}
+                  disabled={sendLoading}
+                  className="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {sendLoading ? 'Wird gesendet…' : 'Anfrage senden'}
+                </button>
+                {sendSuccess && <span className="text-sm font-medium text-emerald-600">Anfrage wurde gesendet.</span>}
+              </div>
             )}
           </section>
 
@@ -226,9 +428,9 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
             <button
               type="button"
               onClick={exportPdf}
-              disabled={selectedIds.size === 0}
+              disabled={payloadHorses.length === 0}
               className="px-5 py-3 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              title={selectedIds.size === 0 ? 'Bitte zuerst Pferde auswählen.' : undefined}
+              title={payloadHorses.length === 0 ? 'Bitte Pferde auswählen und pro Pferd mindestens eine Impfkategorie bzw. Impfung ankreuzen.' : undefined}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
               PDF exportieren
