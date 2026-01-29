@@ -96,7 +96,6 @@ export async function getSession() {
 }
 
 export async function getProfile(): Promise<Profile | null> {
-  await supabase.auth.refreshSession();
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) return null;
   const { data, error } = await supabase

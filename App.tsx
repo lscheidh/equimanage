@@ -13,6 +13,30 @@ import { supabase } from './services/supabase';
 type ProfileSubView = 'stableOverview' | 'profile' | 'settings' | 'dashboard';
 type AuthState = 'LANDING' | 'LOGIN' | 'REGISTER_CHOICE' | 'REGISTER_OWNER' | 'REGISTER_VET' | 'AUTHENTICATED';
 
+function mapAuthError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  const s = msg.toLowerCase();
+  if (s.includes('invalid login') || s.includes('invalid_credentials') || s.includes('invalid grant')) return 'E-Mail oder Passwort falsch. Bitte prüfe deine Eingaben.';
+  if (s.includes('email not confirmed')) return 'E-Mail noch nicht bestätigt. Bitte klicke den Link in der Bestätigungsmail.';
+  if (s.includes('already registered') || s.includes('user already exists') || s.includes('duplicate')) return 'Diese E-Mail ist bereits registriert. Bitte melde dich an.';
+  if (s.includes('password') && (s.includes('short') || s.includes('weak') || s.includes('least'))) return 'Passwort zu schwach. Bitte mindestens 6 Zeichen verwenden.';
+  if (s.includes('fetch') || s.includes('network') || s.includes('failed to fetch')) return 'Netzwerkfehler. Bitte Verbindung prüfen und erneut versuchen.';
+  if (s.includes('jwt') || s.includes('session')) return 'Sitzung abgelaufen. Bitte melde dich erneut an.';
+  if (s.includes('nicht angemeldet')) return 'Nicht angemeldet. Bitte zuerst anmelden.';
+  if (msg) return msg;
+  return 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.';
+}
+
+function mapHorseError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  const s = msg.toLowerCase();
+  if (s.includes('duplicate') || s.includes('unique') || s.includes('already exists')) return 'Pferd mit dieser ISO- oder FEI-Nr. existiert bereits.';
+  if (s.includes('foreign key') || s.includes('owner')) return 'Besitzer nicht gefunden. Bitte Seite neu laden.';
+  if (s.includes('fetch') || s.includes('network')) return 'Netzwerkfehler. Pferd konnte nicht gespeichert werden.';
+  if (msg) return msg;
+  return 'Pferd anlegen fehlgeschlagen. Bitte erneut versuchen.';
+}
+
 const App: React.FC = () => {
   const [authState, setAuthState] = useState<AuthState>('LANDING');
   const [view, setView] = useState<UserView>(UserView.OWNER);
@@ -63,6 +87,9 @@ const App: React.FC = () => {
   const [horseCreateLoading, setHorseCreateLoading] = useState(false);
   const [horseError, setHorseError] = useState<string | null>(null);
 
+  const [registrationSuccessMessage, setRegistrationSuccessMessage] = useState<string | null>(null);
+  const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
+
   const defaultHorseData = (): Partial<Horse> => ({
     name: '', isoNr: '', feiNr: '', birthYear: new Date().getFullYear(), breedingAssociation: '',
     breed: '', gender: 'Wallach', color: '', weightKg: 600,
@@ -73,6 +100,36 @@ const App: React.FC = () => {
     setRedeemCode('');
     setAddMode('manual');
     setHorseError(null);
+  };
+
+  const clearAuthForms = () => {
+    setLoginEmail('');
+    setLoginPassword('');
+    setRegZip('');
+    setRegFirstName('');
+    setRegLastName('');
+    setRegEmail('');
+    setRegPassword('');
+    setSelectedStableId('');
+    setCreateNewStable(false);
+    setNewStallName('');
+    setVetPracticeName('');
+    setVetZip('');
+    setVetEmail('');
+    setVetPassword('');
+    setSuggestedStables([]);
+    setAuthError(null);
+    setRegistrationSuccessMessage(null);
+  };
+
+  const handleLogout = async () => {
+    setShowProfileMenu(false);
+    try { await auth.signOut(); } catch (_) { /* ignorieren */ }
+    setAuthState('LANDING');
+    setProfile(null);
+    setHorses([]);
+    setView(UserView.OWNER);
+    clearAuthForms();
   };
 
   const profileRef = useRef<HTMLDivElement>(null);
@@ -106,18 +163,28 @@ const App: React.FC = () => {
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      const session = await auth.getSession();
-      if (!mounted) return;
-      if (session) {
-        await loadProfileAndData();
-        setAuthState('AUTHENTICATED');
-      } else {
+      try {
+        const session = await auth.getSession();
+        if (!mounted) return;
+        if (session) {
+          await loadProfileAndData();
+          if (!mounted) return;
+          setAuthState('AUTHENTICATED');
+        } else {
+          setAuthState('LANDING');
+          setProfile(null);
+          setHorses([]);
+          setView(UserView.OWNER);
+        }
+      } catch {
+        if (!mounted) return;
         setAuthState('LANDING');
         setProfile(null);
         setHorses([]);
         setView(UserView.OWNER);
+      } finally {
+        if (mounted) setAuthReady(true);
       }
-      setAuthReady(true);
     };
     load();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -328,14 +395,20 @@ const App: React.FC = () => {
       case 'LANDING':
         return (
           <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4 animate-in fade-in duration-1000">
+            {registrationSuccessMessage && (
+              <div className="mb-8 w-full max-w-md p-5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-left">
+                <p className="font-bold mb-1">Registrierung erfolgreich</p>
+                <p className="text-sm">{registrationSuccessMessage}</p>
+              </div>
+            )}
             <div className="w-24 h-24 bg-indigo-600 rounded-[2.5rem] flex items-center justify-center text-white shadow-2xl mb-8 transform rotate-3 hover:rotate-0 transition-transform">
               <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /></svg>
             </div>
             <h1 className="text-6xl font-black text-slate-900 mb-4 tracking-tighter">EquiManage</h1>
             <p className="text-xl text-slate-500 max-w-xl mb-12 font-medium">Das digitale Zuhause für dein Pferdemanagement & FEI-Konformität.</p>
             <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-              <button type="button" onClick={() => setAuthState('LOGIN')} className="flex-1 bg-slate-900 text-white font-bold py-4 rounded-2xl hover:bg-slate-800 transition-all shadow-xl">Anmelden</button>
-              <button type="button" onClick={() => setAuthState('REGISTER_CHOICE')} className="flex-1 bg-white border-2 border-slate-200 text-slate-900 font-bold py-4 rounded-2xl hover:bg-slate-50 transition-all">Registrieren</button>
+              <button type="button" onClick={() => { setAuthState('LOGIN'); setRegistrationSuccessMessage(null); }} className="flex-1 bg-slate-900 text-white font-bold py-4 rounded-2xl hover:bg-slate-800 transition-all shadow-xl">Anmelden</button>
+              <button type="button" onClick={() => { setAuthState('REGISTER_CHOICE'); setRegistrationSuccessMessage(null); }} className="flex-1 bg-white border-2 border-slate-200 text-slate-900 font-bold py-4 rounded-2xl hover:bg-slate-50 transition-all">Registrieren</button>
             </div>
           </div>
         );
@@ -351,10 +424,9 @@ const App: React.FC = () => {
                 await auth.signIn(loginEmail, loginPassword);
                 await loadProfileAndData();
                 setAuthState('AUTHENTICATED');
-                setLoginEmail('');
-                setLoginPassword('');
+                clearAuthForms();
               } catch (err) {
-                setAuthError(err instanceof Error ? err.message : 'Anmeldung fehlgeschlagen.');
+                setAuthError(mapAuthError(err));
               } finally {
                 setAuthLoading(false);
               }
@@ -362,8 +434,8 @@ const App: React.FC = () => {
               <input type="email" placeholder="E-Mail Adresse" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
               <input type="password" placeholder="Passwort" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
               {authError && <p className="text-sm text-rose-600 font-medium">{authError}</p>}
-              <button type="submit" disabled={authLoading} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg mt-4 disabled:opacity-60">Login</button>
-              <button type="button" onClick={() => { setAuthState('LANDING'); setAuthError(null); }} className="w-full text-slate-400 text-sm py-2 hover:text-slate-600">Zurück zur Startseite</button>
+              <button type="submit" disabled={authLoading} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg mt-4 disabled:opacity-60">Anmelden</button>
+              <button type="button" onClick={() => { setAuthState('LANDING'); clearAuthForms(); }} className="w-full text-slate-400 text-sm py-2 hover:text-slate-600">Zurück zur Startseite</button>
             </form>
           </div>
         );
@@ -384,7 +456,7 @@ const App: React.FC = () => {
                 <p className="text-slate-400 text-sm">Patientenmanagement, Verifizierung und Tourenplanung.</p>
               </button>
             </div>
-            <button type="button" onClick={() => setAuthState('LANDING')} className="mt-12 text-slate-400 font-bold hover:text-slate-600">Zurück</button>
+            <button type="button" onClick={() => { setAuthState('LANDING'); clearAuthForms(); }} className="mt-12 text-slate-400 font-bold hover:text-slate-600">Zurück</button>
           </div>
         );
       case 'REGISTER_OWNER':
