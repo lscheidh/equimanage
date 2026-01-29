@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Horse } from '../types';
+import { Horse, ComplianceStatus } from '../types';
 import { checkVaccinationCompliance, getStatusColor, getStatusLabel } from '../logic';
 import { HORSE_PLACEHOLDER_IMAGE } from '../services/horseImageService';
 
