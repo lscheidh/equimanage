@@ -31,26 +31,18 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({ horses, onSele
 
     horses.forEach(horse => {
       const tasks: ActionSubItem[] = [];
-      
-      // Check Vaccination
       const compliance = checkVaccinationCompliance(horse);
-      if (compliance.status !== ComplianceStatus.GREEN) {
-        tasks.push({
-          type: 'VACC',
-          priority: compliance.status,
-          message: compliance.message
-        });
+      for (const di of compliance.dueItems) {
+        tasks.push({ type: 'VACC', priority: di.status, message: di.message });
       }
-
-      // Check Hoof Care
       const hoof = checkHoofCareStatus(horse);
       if (hoof.status !== ComplianceStatus.GREEN) {
         tasks.push({
           type: 'HOOF',
           priority: hoof.status,
-          message: hoof.status === ComplianceStatus.RED 
-            ? `Hufschmied überfällig (über 8 Wochen)` 
-            : `Hufschmied fällig (über 6 Wochen)`
+          message: hoof.status === ComplianceStatus.RED
+            ? 'Hufschmied überfällig (über 8 Wochen)'
+            : 'Hufschmied fällig (über 6 Wochen)',
         });
       }
 
