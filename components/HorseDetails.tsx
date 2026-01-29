@@ -220,17 +220,27 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                       <td className="px-8 py-5 text-sm font-medium text-slate-600 align-top">{date}</td>
                       <td className="px-8 py-5 align-top">
                         <div className="flex flex-wrap gap-x-4 gap-y-2">
-                          {vaccs.map(v => (
-                            <span key={v.id} className="inline-flex items-center gap-1.5">
-                              <span className="font-bold text-slate-800">{v.type} <span className="text-[10px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-md ml-1">{v.sequence}</span></span>
-                              <button type="button" onClick={e => { e.stopPropagation(); setEditingItem(v); setEntryData({...v}); setShowVaccModal(true); }} className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Bearbeiten">
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                              </button>
-                              <button type="button" onClick={e => { e.stopPropagation(); setTargetId(v.id); setShowDeleteConfirm('vacc'); }} className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Löschen">
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                              </button>
-                            </span>
-                          ))}
+                          {vaccs.map(v => {
+                            const isPlanned = v.status === 'planned';
+                            return (
+                              <span key={v.id} className="inline-flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-slate-800">{v.type} <span className="text-[10px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-md ml-1">{v.sequence}</span></span>
+                                {isPlanned && <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Geplant</span>}
+                                {isPlanned ? (
+                                  <button type="button" onClick={e => { e.stopPropagation(); const today = new Date().toISOString().split('T')[0]; onUpdateVaccination(horse.id, { ...v, status: 'verified', date: today }); }} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 px-2 py-1 rounded-lg transition-all" title="Nach durchgeführter Impfung aktivieren">Aktivieren</button>
+                                ) : (
+                                  <>
+                                    <button type="button" onClick={e => { e.stopPropagation(); setEditingItem(v); setEntryData({...v}); setShowVaccModal(true); }} className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Bearbeiten">
+                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                    </button>
+                                    <button type="button" onClick={e => { e.stopPropagation(); setTargetId(v.id); setShowDeleteConfirm('vacc'); }} className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Löschen">
+                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                  </>
+                                )}
+                              </span>
+                            );
+                          })}
                         </div>
                       </td>
                     </tr>

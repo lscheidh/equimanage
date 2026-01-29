@@ -12,7 +12,7 @@ export interface Vaccination {
   vetName: string;
   isBooster: boolean;
   sequence?: 'V1' | 'V2' | 'V3' | 'Booster';
-  status: 'verified' | 'pending';
+  status: 'verified' | 'pending' | 'planned';
 }
 
 export type ServiceType = 'Hufschmied' | 'Entwurmung' | 'Zahnarzt' | 'Physio' | 'Sonstiges';

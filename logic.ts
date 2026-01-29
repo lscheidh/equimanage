@@ -70,6 +70,7 @@ export interface VaccComplianceResult {
 export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
   const byType = new Map<string, Vaccination[]>();
   for (const v of horse.vaccinations) {
+    if (v.status === 'planned') continue;
     const t = v.type || 'Influenza';
     if (!byType.has(t)) byType.set(t, []);
     byType.get(t)!.push(v);

@@ -165,10 +165,12 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
 
   const sendRequest = useCallback(async () => {
     if (!canSend || !profile) return;
+    const vet = allVets.find((v) => v.id === selectedVetId);
     setSendLoading(true);
     setSendSuccess(false);
     try {
-      await appointmentRequestService.createAppointmentRequest(profile.id, selectedVetId!, {
+      const vetId = selectedVetId!;
+      const created = await appointmentRequestService.createAppointmentRequest(profile.id, vetId, {
         owner: {
           firstName: profile.first_name ?? '',
           lastName: profile.last_name ?? '',
@@ -176,17 +178,21 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
           zip: profile.zip ?? null,
           email: userEmail ?? null,
         },
+        vet: vet ? { practiceName: vet.practice_name ?? null, zip: vet.zip ?? null } : undefined,
         horses: payloadHorses,
       });
       setSendSuccess(true);
       setSelectedVetId(null);
+      try {
+        await supabase.functions.invoke('notify-vet-request', { body: { requestId: created.id, vetId } });
+      } catch (_) { /* optional; Edge Function ggf. nicht deployed */ }
     } catch (e) {
       console.error(e);
-      alert('Anfrage konnte nicht gesendet werden. Bitte erneut versuchen.');
+      alert(e instanceof Error ? e.message : 'Anfrage konnte nicht gesendet werden. Bitte erneut versuchen.');
     } finally {
       setSendLoading(false);
     }
-  }, [canSend, profile, selectedVetId, userEmail, payloadHorses]);
+  }, [canSend, profile, selectedVetId, userEmail, payloadHorses, allVets]);
 
   const exportPdf = useCallback(() => {
     const toExport = payloadHorses;
