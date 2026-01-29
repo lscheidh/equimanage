@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Horse } from '../types';
-import { checkFEICompliance, getStatusColor } from '../logic';
+import { checkVaccinationCompliance, getStatusColor, getStatusLabel } from '../logic';
 
 interface HorseCardProps {
   horse: Horse;
@@ -9,8 +9,9 @@ interface HorseCardProps {
 }
 
 export const HorseCard: React.FC<HorseCardProps> = ({ horse, onClick }) => {
-  const compliance = checkFEICompliance(horse);
+  const compliance = checkVaccinationCompliance(horse);
   const colorClass = getStatusColor(compliance.status);
+  const statusLabel = getStatusLabel(compliance.status);
 
   return (
     <div 
@@ -24,7 +25,7 @@ export const HorseCard: React.FC<HorseCardProps> = ({ horse, onClick }) => {
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className={`absolute top-3 right-3 px-2 py-1 rounded-full text-[10px] font-bold text-white uppercase tracking-wider ${colorClass} shadow-md`}>
-          {compliance.status}
+          {statusLabel}
         </div>
       </div>
       <div className="p-5">
@@ -32,7 +33,6 @@ export const HorseCard: React.FC<HorseCardProps> = ({ horse, onClick }) => {
         
         <div className="grid grid-cols-1 gap-1 text-[11px] text-slate-500 mb-4 bg-slate-50 p-2 rounded-xl">
           <div className="flex justify-between"><span>ISO:</span> <span className="text-slate-700 font-medium">{horse.isoNr}</span></div>
-          <div className="flex justify-between"><span>FEI:</span> <span className="text-slate-700 font-medium">{horse.feiNr}</span></div>
           <div className="flex justify-between"><span>Geb.:</span> <span className="text-slate-700 font-medium">{horse.birthYear}</span></div>
         </div>
         

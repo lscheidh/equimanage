@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Horse, ComplianceStatus } from '../types';
 import { HorseCard } from './HorseCard';
-import { checkFEICompliance, getStatusColor } from '../logic';
+import { checkVaccinationCompliance, getStatusColor, getStatusLabel } from '../logic';
 
 interface HealthDashboardProps {
   horses: Horse[];
@@ -24,14 +24,14 @@ export const HealthDashboard: React.FC<HealthDashboardProps> = ({
 
   const filteredHorses = horses.filter(h => {
     if (filter === 'ALL') return true;
-    return checkFEICompliance(h).status === filter;
+    return checkVaccinationCompliance(h).status === filter;
   });
 
   const stats = {
     total: horses.length,
-    green: horses.filter(h => checkFEICompliance(h).status === ComplianceStatus.GREEN).length,
-    yellow: horses.filter(h => checkFEICompliance(h).status === ComplianceStatus.YELLOW).length,
-    red: horses.filter(h => checkFEICompliance(h).status === ComplianceStatus.RED).length,
+    green: horses.filter(h => checkVaccinationCompliance(h).status === ComplianceStatus.GREEN).length,
+    yellow: horses.filter(h => checkVaccinationCompliance(h).status === ComplianceStatus.YELLOW).length,
+    red: horses.filter(h => checkVaccinationCompliance(h).status === ComplianceStatus.RED).length,
   };
 
   return (
@@ -134,7 +134,7 @@ export const HealthDashboard: React.FC<HealthDashboardProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredHorses.map(horse => {
-                const compliance = checkFEICompliance(horse);
+                const compliance = checkVaccinationCompliance(horse);
                 return (
                   <tr key={horse.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => onSelectHorse(horse)}>
                     <td className="px-6 py-4">
@@ -146,7 +146,7 @@ export const HealthDashboard: React.FC<HealthDashboardProps> = ({
                     <td className="px-6 py-4 text-sm text-slate-500">{horse.breed}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold text-white uppercase ${getStatusColor(compliance.status)}`}>
-                        {compliance.status}
+                        {getStatusLabel(compliance.status)}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
