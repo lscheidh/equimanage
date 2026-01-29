@@ -35,13 +35,13 @@ export interface Horse {
   chipId: string;
   ownerId: string;
   ownerName: string;
-  gender: 'Hengst' | 'Stute' | 'Wallach';
+  gender: 'Hengst' | 'Stute' | 'Wallach' | null;
   color: string;
   breedingAssociation: string;
   image: string;
   vaccinations: Vaccination[];
   serviceHistory: ServiceRecord[];
-  weightKg: number;
+  weightKg: number | null;
 }
 
 export interface Task {

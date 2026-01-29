@@ -172,7 +172,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({ horses, onSele
                   
                   <div>
                     <h4 className="font-bold text-slate-900 text-xl group-hover:text-indigo-600 transition-colors">{item.horse.name}</h4>
-                    <p className="text-xs text-slate-400 font-medium">{item.horse.breed} • {item.horse.gender}</p>
+                    <p className="text-xs text-slate-400 font-medium">{item.horse.breed || '—'} • {item.horse.gender ?? '—'}</p>
                   </div>
                 </div>
 

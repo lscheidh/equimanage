@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Horse, Vaccination, ServiceRecord, ServiceType, ComplianceStatus } from '../types';
 import { checkVaccinationCompliance, getStatusColor, getStatusLabel } from '../logic';
+import { uploadHorseImage, HORSE_PLACEHOLDER_IMAGE } from '../services/horseImageService';
 
 interface HorseDetailsProps {
   horse: Horse;
@@ -38,6 +39,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
   
   const [editingItem, setEditingItem] = useState<any>(null);
   const [transferCode, setTransferCode] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
 
   const [editedHorse, setEditedHorse] = useState<Horse>(horse);
   useEffect(() => { if (!showEditHorseMask) setEditedHorse(horse); }, [horse, showEditHorseMask]);
@@ -142,13 +144,13 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden group">
             <div className="relative h-56 overflow-hidden">
-              <img src={horse.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={horse.name} />
+              <img src={horse.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={horse.name} onError={e => { (e.target as HTMLImageElement).src = HORSE_PLACEHOLDER_IMAGE; }} />
               <div className={`absolute top-4 right-4 px-3 py-1.5 rounded-full text-[10px] font-black text-white uppercase tracking-widest shadow-lg ${getStatusColor(compliance.status)}`}>{statusLabel}</div>
             </div>
             <div className="p-8 space-y-5">
               <div>
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none">{horse.name}</h2>
-                <p className="text-sm text-slate-400 font-bold mt-1">{horse.breed}</p>
+                <p className="text-sm text-slate-400 font-bold mt-1">{horse.breed || '—'}</p>
               </div>
               
               <div className="pt-5 border-t border-slate-50 space-y-3">
@@ -158,11 +160,11 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                 {showMoreInfo && (
                   <div className="pt-3 space-y-3 border-t border-slate-50 mt-3 animate-in slide-in-from-top-4">
                     <div className="flex justify-between"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Geburtsjahr</span><span className="text-xs font-bold text-slate-800">{horse.birthYear}</span></div>
-                    <div className="flex justify-between"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chip-ID</span><span className="text-xs font-mono text-slate-800">{horse.chipId}</span></div>
-                    <div className="flex justify-between"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Verband</span><span className="text-xs font-bold text-slate-800">{horse.breedingAssociation}</span></div>
-                    <div className="flex justify-between"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Geschlecht</span><span className="text-xs font-bold text-slate-800">{horse.gender}</span></div>
-                    <div className="flex justify-between"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Farbe</span><span className="text-xs font-bold text-slate-800">{horse.color}</span></div>
-                    <div className="flex justify-between"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gewicht</span><span className="text-xs font-bold text-slate-800">{horse.weightKg} kg</span></div>
+                    <div className="flex justify-between"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chip-ID</span><span className="text-xs font-mono text-slate-800">{horse.chipId || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Verband</span><span className="text-xs font-bold text-slate-800">{horse.breedingAssociation || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Geschlecht</span><span className="text-xs font-bold text-slate-800">{horse.gender ?? '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Farbe</span><span className="text-xs font-bold text-slate-800">{horse.color || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gewicht</span><span className="text-xs font-bold text-slate-800">{horse.weightKg != null ? `${horse.weightKg} kg` : '—'}</span></div>
                   </div>
                 )}
                 
@@ -243,13 +245,32 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename</label><input type="text" value={editedHorse.name} onChange={e => setEditedHorse({...editedHorse, name: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold" /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN)</label><input type="text" value={editedHorse.isoNr} onChange={e => setEditedHorse({...editedHorse, isoNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Reg.-Nr.</label><input type="text" value={editedHorse.feiNr} onChange={e => setEditedHorse({...editedHorse, feiNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
-              <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Profilbild (URL)</label><input type="url" value={editedHorse.image} onChange={e => setEditedHorse({...editedHorse, image: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="https://…" /></div>
+              <div className="col-span-2 space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Profilbild</label>
+                <input type="url" value={editedHorse.image} onChange={e => setEditedHorse({...editedHorse, image: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="URL oder Foto hochladen" />
+                <div className="flex items-center gap-3 flex-wrap">
+                  <label className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 text-sm font-medium text-slate-700">
+                    <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <span>{imageUploading ? 'Wird hochgeladen…' : 'Foto aufnehmen / hochladen'}</span>
+                    <input type="file" accept="image/*" capture="environment" className="sr-only" disabled={imageUploading} onChange={async e => {
+                      const f = e.target.files?.[0];
+                      if (!f || !horse.ownerId) return;
+                      setImageUploading(true);
+                      try {
+                        const url = await uploadHorseImage(f, horse.ownerId, horse.id);
+                        setEditedHorse(prev => ({ ...prev, image: url }));
+                      } catch (_) { /* TODO: toast */ }
+                      finally { setImageUploading(false); e.target.value = ''; }
+                    }} />
+                  </label>
+                </div>
+              </div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr</label><input type="number" value={editedHorse.birthYear} onChange={e => setEditedHorse({...editedHorse, birthYear: parseInt(e.target.value, 10) || new Date().getFullYear()})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zuchtverband</label><input type="text" value={editedHorse.breedingAssociation} onChange={e => setEditedHorse({...editedHorse, breedingAssociation: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Rasse</label><input type="text" value={editedHorse.breed} onChange={e => setEditedHorse({...editedHorse, breed: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Chip-ID</label><input type="text" value={editedHorse.chipId} onChange={e => setEditedHorse({...editedHorse, chipId: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
-              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geschlecht</label><select value={editedHorse.gender} onChange={e => setEditedHorse({...editedHorse, gender: e.target.value as any})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold"><option>Wallach</option><option>Stute</option><option>Hengst</option></select></div>
-              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Gewicht (kg)</label><input type="number" value={editedHorse.weightKg} onChange={e => setEditedHorse({...editedHorse, weightKg: parseInt(e.target.value, 10) || 0})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
+              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geschlecht</label><select value={editedHorse.gender ?? ''} onChange={e => setEditedHorse({...editedHorse, gender: (e.target.value || null) as Horse['gender']})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold"><option value="">—</option><option>Wallach</option><option>Stute</option><option>Hengst</option></select></div>
+              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Gewicht (kg)</label><input type="number" value={editedHorse.weightKg ?? ''} onChange={e => { const v = e.target.value; setEditedHorse({...editedHorse, weightKg: v === '' ? null : parseInt(v, 10) || null}); }} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="—" /></div>
             </div>
             <div className="flex gap-4 pt-6 border-t border-slate-100">
               <button type="button" onClick={() => { setEditedHorse(horse); setShowEditHorseMask(false); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-black rounded-2xl">Abbrechen</button>

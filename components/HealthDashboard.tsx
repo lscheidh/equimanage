@@ -143,7 +143,7 @@ export const HealthDashboard: React.FC<HealthDashboardProps> = ({
                         <span className="font-bold text-slate-900">{horse.name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-500">{horse.breed}</td>
+                    <td className="px-6 py-4 text-sm text-slate-500">{horse.breed || '—'}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold text-white uppercase ${getStatusColor(compliance.status)}`}>
                         {getStatusLabel(compliance.status)}

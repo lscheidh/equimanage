@@ -2,6 +2,7 @@
 import React from 'react';
 import { Horse } from '../types';
 import { checkVaccinationCompliance, getStatusColor, getStatusLabel } from '../logic';
+import { HORSE_PLACEHOLDER_IMAGE } from '../services/horseImageService';
 
 interface HorseCardProps {
   horse: Horse;
@@ -23,6 +24,7 @@ export const HorseCard: React.FC<HorseCardProps> = ({ horse, onClick }) => {
           src={horse.image} 
           alt={horse.name} 
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          onError={e => { (e.target as HTMLImageElement).src = HORSE_PLACEHOLDER_IMAGE; }}
         />
         <div className={`absolute top-3 right-3 px-2 py-1 rounded-full text-[10px] font-bold text-white uppercase tracking-wider ${colorClass} shadow-md`}>
           {statusLabel}
