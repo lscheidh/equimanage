@@ -190,3 +190,31 @@ export async function createStable(name: string, zip: string): Promise<Stable> {
   if (error) throw error;
   return { id: data.id, name: data.name, zip: data.zip, created_at: data.created_at };
 }
+
+export type VetSearchResult = { id: string; practice_name: string | null; zip: string | null };
+
+/**
+ * Lädt alle registrierten Tierärzte (für Suche nach PLZ / Name).
+ * Erfordert Migration 004 (profiles_select_vets).
+ */
+export async function listVets(): Promise<VetSearchResult[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, practice_name, zip')
+    .eq('role', 'vet');
+  if (error) return [];
+  return (data ?? []) as VetSearchResult[];
+}
+
+/**
+ * Filtert Tierärzte nach PLZ oder Praxis-/Firmennamen (lokal).
+ */
+export function filterVets(list: VetSearchResult[], query: string): VetSearchResult[] {
+  const q = (query || '').trim().toLowerCase();
+  if (q.length < 1) return [];
+  return list.filter(
+    (r) =>
+      (r.practice_name ?? '').toLowerCase().includes(q) ||
+      (r.zip ?? '').toLowerCase().includes(q)
+  );
+}

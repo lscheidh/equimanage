@@ -216,3 +216,7 @@ Beim Anlegen eines neuen Stalls werden Name und PLZ in `stables` gespeichert. Di
 ### Tierarzt-Registrierung
 
 Das Tierarzt-Profil wird per **Trigger** `handle_new_user` angelegt (Schritt 3b). Ohne diesen Trigger schlägt die Registrierung u. a. bei aktivierter E-Mail-Bestätigung fehl.
+
+### Tierarztsuche („Termin vereinbaren“)
+
+Damit Besitzer in der Stallübersicht unter **Termin vereinbaren** nach registrierten Tierärzten (PLZ / Praxisname) suchen können, muss die Migration **`004_profiles_select_vets.sql`** ausgeführt werden. Sie legt eine RLS-Policy an, die authentifizierten Nutzern erlaubt, Profile mit `role = 'vet'` zu lesen (u. a. `practice_name`, `zip`).

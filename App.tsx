@@ -5,6 +5,7 @@ import { HealthDashboard } from './components/HealthDashboard';
 import { ActionDashboard } from './components/ActionDashboard';
 import { HorseDetails } from './components/HorseDetails';
 import { VetPortal } from './components/VetPortal';
+import { TerminVereinbarenModal } from './components/TerminVereinbarenModal';
 import { checkVaccinationCompliance, checkHoofCareStatus } from './logic';
 import * as auth from './services/authService';
 import * as horseService from './services/horseService';
@@ -54,6 +55,7 @@ const App: React.FC = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAddHorseModal, setShowAddHorseModal] = useState(false);
+  const [showTerminModal, setShowTerminModal] = useState(false);
   const [addMode, setAddMode] = useState<'manual' | 'transfer'>('manual');
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -698,7 +700,7 @@ const App: React.FC = () => {
         {ownerSubView === 'dashboard' ? (
           <ActionDashboard horses={horses} onSelectHorse={setSelectedHorse} onGoToStable={() => setOwnerSubView('stableOverview')} />
         ) : (
-          <HealthDashboard horses={horses} onSelectHorse={setSelectedHorse} onAddNewHorse={() => { setHorseError(null); setShowAddHorseModal(true); }} onExport={() => {}} onGoToDashboard={() => setOwnerSubView('dashboard')} />
+          <HealthDashboard horses={horses} onSelectHorse={setSelectedHorse} onAddNewHorse={() => { setHorseError(null); setShowAddHorseModal(true); }} onTerminVereinbaren={() => setShowTerminModal(true)} onGoToDashboard={() => setOwnerSubView('dashboard')} />
         )}
       </div>
     );
@@ -785,6 +787,9 @@ const App: React.FC = () => {
         ) : authState === 'AUTHENTICATED' ? (profile?.role === 'vet' ? <VetPortal /> : renderContent()) : renderAuth()}
       </main>
 
+      {showTerminModal && profile?.role === 'owner' && (
+        <TerminVereinbarenModal horses={horses} profile={profile} onClose={() => setShowTerminModal(false)} />
+      )}
       {showAddHorseModal && profile?.role === 'owner' && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={closeAddHorseModal} role="presentation">
           <form onSubmit={handleCreateHorse} className="bg-white rounded-[2.5rem] p-10 max-w-xl w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-6" onClick={e => e.stopPropagation()}>
