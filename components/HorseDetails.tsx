@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Horse, Vaccination, ServiceRecord, ServiceType, ComplianceStatus } from '../types';
 import { checkVaccinationCompliance, getStatusColor, getStatusLabel } from '../logic';
 import { uploadHorseImage, HORSE_PLACEHOLDER_IMAGE } from '../services/horseImageService';
+import * as rimondo from '../services/rimondoService';
 
 interface HorseDetailsProps {
   horse: Horse;
@@ -42,6 +43,8 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
   const [imageUploading, setImageUploading] = useState(false);
 
   const [editedHorse, setEditedHorse] = useState<Horse>(horse);
+  const [rimondoUrl, setRimondoUrl] = useState('');
+  const [rimondoLoading, setRimondoLoading] = useState(false);
   useEffect(() => { if (!showEditHorseMask) setEditedHorse(horse); }, [horse, showEditHorseMask]);
 
   const [entryData, setEntryData] = useState({
@@ -307,7 +310,6 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Reg.-Nr.</label><input type="text" value={editedHorse.feiNr} onChange={e => setEditedHorse({...editedHorse, feiNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
               <div className="col-span-2 space-y-2">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Profilbild</label>
-                <input type="url" value={editedHorse.image} onChange={e => setEditedHorse({...editedHorse, image: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="URL oder Foto hochladen" />
                 <div className="flex items-center gap-3 flex-wrap">
                   <label className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 text-sm font-medium text-slate-700">
                     <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -323,6 +325,13 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                       finally { setImageUploading(false); e.target.value = ''; }
                     }} />
                   </label>
+                </div>
+              </div>
+              <div className="col-span-2 pt-2 border-t border-slate-100">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Rimondo</div>
+                <div className="flex gap-2">
+                  <input type="url" value={rimondoUrl} onChange={e => setRimondoUrl(e.target.value)} placeholder="Rimondo-Profil-URL" className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
+                  <button type="button" onClick={async () => { if (!rimondo.isRimondoUrl(rimondoUrl)) return; setRimondoLoading(true); try { const d = await rimondo.fetchRimondoData(rimondoUrl); setEditedHorse(prev => ({ ...prev, name: d.name ?? prev.name, breed: d.breed ?? prev.breed, birthYear: d.birthYear ?? prev.birthYear, breedingAssociation: d.breedingAssociation ?? prev.breedingAssociation, gender: d.gender ?? prev.gender })); } finally { setRimondoLoading(false); } }} disabled={rimondoLoading || !rimondo.isRimondoUrl(rimondoUrl)} className="px-4 py-3 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 disabled:opacity-50 shrink-0">Von Rimondo übernehmen</button>
                 </div>
               </div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr</label><input type="number" value={editedHorse.birthYear} onChange={e => setEditedHorse({...editedHorse, birthYear: parseInt(e.target.value, 10) || new Date().getFullYear()})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>

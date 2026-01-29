@@ -229,3 +229,7 @@ Damit Besitzer Anfragen an Tierärzte senden und Tierärzte diese im Dashboard e
 - **006**: Spalten **status** (pending/accepted/rejected), **scheduled_date**, **vet_response_at**, **owner_confirmed_at**; RLS für Owner SELECT sowie Vet-/Owner-UPDATE.
 
 **E-Mail an Tierarzt:** Die App ruft nach „Anfrage senden“ optional die Edge Function `notify-vet-request` auf. Stub liegt unter `supabase/functions/notify-vet-request/`. Deployment: `supabase functions deploy notify-vet-request`. Dort kann z. B. E-Mail-Versand (Resend o. Ä.) ergänzt werden.
+
+**Dual-Rolle (Besitzer + Tierarzt):** Migration **`007_profiles_practice_zip_dual_role.sql`** fügt `practice_zip` hinzu und eine RLS-Policy, damit auch Profile mit `practice_name` (duale Rolle) in der Tierarztsuche erscheinen.
+
+**Rimondo-Import:** Beim Anlegen/Bearbeiten eines Pferdes kann eine Rimondo-Profil-URL eingefügt und „Von Rimondo übernehmen“ genutzt werden. Dazu die Edge Function `rimondo-fetch` deployen: `supabase functions deploy rimondo-fetch`. Sie holt die Rimondo-Seite und liefert Name, Rasse, Geburtsjahr, Geschlecht, Zuchtverband zurück.

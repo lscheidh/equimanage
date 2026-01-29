@@ -40,23 +40,23 @@ export const HorseCard: React.FC<HorseCardProps> = ({ horse, onClick }) => {
         
         <div className="border-t border-slate-100 pt-3 space-y-1">
           {compliance.status === ComplianceStatus.GREEN && compliance.nextDueInfo ? (
-            <div className="flex items-center gap-2 text-[10px] text-slate-600">
-              <div className={`w-2 h-2 rounded-full ${colorClass} animate-pulse shrink-0`} />
-              <span className="font-semibold truncate uppercase tracking-tighter">{compliance.nextDueInfo.sequence} {compliance.nextDueInfo.type} am {compliance.nextDueInfo.dueDate}</span>
+            <div className="flex items-start gap-2 text-[10px] text-slate-600">
+              <div className={`w-2 h-2 rounded-full ${colorClass} animate-pulse shrink-0 mt-0.5`} />
+              <span className="font-semibold uppercase tracking-tighter break-words">{compliance.nextDueInfo.sequence} {compliance.nextDueInfo.type} am {compliance.nextDueInfo.dueDate}</span>
             </div>
           ) : compliance.dueItems.length > 0 ? (
             <ul className="space-y-0.5">
               {compliance.dueItems.map((di, j) => (
                 <li key={j} className="flex items-start gap-1.5 text-[10px] text-slate-600">
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1 ${getStatusColor(di.status)}`} />
-                  <span className="line-clamp-1">{di.message}</span>
+                  <span className="break-words min-w-0">{di.message}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <div className="flex items-center gap-2 text-[10px] text-slate-600">
-              <div className={`w-2 h-2 rounded-full ${colorClass} shrink-0`} />
-              <span className="font-semibold uppercase tracking-tighter">{compliance.message}</span>
+            <div className="flex items-start gap-2 text-[10px] text-slate-600">
+              <div className={`w-2 h-2 rounded-full ${colorClass} shrink-0 mt-0.5`} />
+              <span className="font-semibold uppercase tracking-tighter break-words">{compliance.message}</span>
             </div>
           )}
         </div>

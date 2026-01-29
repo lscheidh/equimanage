@@ -5,6 +5,7 @@ import { checkVaccinationCompliance, getStatusColor, VACC_TYPES } from '../logic
 import type { DueItem } from '../logic';
 import * as auth from '../services/authService';
 import * as appointmentRequestService from '../services/appointmentRequestService';
+import { isPlzQuery } from '../services/plzService';
 import { supabase } from '../services/supabase';
 
 interface TerminVereinbarenModalProps {
@@ -29,6 +30,8 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
   const [selectedVetId, setSelectedVetId] = useState<string | null>(null);
   const [allVets, setAllVets] = useState<auth.VetSearchResult[]>([]);
   const [vetsLoading, setVetsLoading] = useState(true);
+  const [vetRadiusResults, setVetRadiusResults] = useState<auth.VetSearchResultWithDistance[] | null>(null);
+  const [vetRadiusLoading, setVetRadiusLoading] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [sendLoading, setSendLoading] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
@@ -39,10 +42,35 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
     return () => clearTimeout(t);
   }, [sendSuccess, onClose]);
 
-  const vetResults = useMemo(
-    () => auth.filterVets(allVets, vetQuery),
-    [allVets, vetQuery]
+  const isPlz = isPlzQuery(vetQuery);
+  const vetResultsByName = useMemo(
+    () => (isPlz ? [] : auth.filterVets(allVets, vetQuery)),
+    [allVets, vetQuery, isPlz]
   );
+
+  useEffect(() => {
+    if (!isPlz || vetQuery.trim().length < 5) {
+      setVetRadiusResults(null);
+      return;
+    }
+    let cancelled = false;
+    setVetRadiusLoading(true);
+    auth.listVetsWithinRadius(vetQuery.trim(), 25).then((list) => {
+      if (!cancelled) {
+        setVetRadiusResults(list);
+        setVetRadiusLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setVetRadiusResults([]);
+        setVetRadiusLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [vetQuery, isPlz]);
+
+  const vetResults = isPlz ? (vetRadiusResults ?? []) : vetResultsByName;
+  const vetResultsLoading = isPlz ? vetRadiusLoading : false;
 
   const dueHorses = useMemo(() => {
     return horses.filter((h) => {
@@ -184,7 +212,7 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
           zip: profile.zip ?? null,
           email: userEmail ?? null,
         },
-        vet: vet ? { practiceName: vet.practice_name ?? null, zip: vet.zip ?? null } : undefined,
+        vet: vet ? { practiceName: vet.practice_name ?? null, zip: (vet.practice_zip ?? vet.zip) ?? null } : undefined,
         horses: payloadHorses,
       });
       setSendSuccess(true);
@@ -408,32 +436,43 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
 
           <section className="border-t border-slate-100 pt-6">
             <h4 className="text-sm font-bold text-slate-800 mb-2">Tierarzt suchen</h4>
-            <p className="text-xs text-slate-500 mb-3">Nach Postleitzahl oder Praxis- bzw. Firmennamen suchen. Klicke einen Eintrag, um die Anfrage an diesen Tierarzt zu senden.</p>
+            <p className="text-xs text-slate-500 mb-3">
+              Gib deine PLZ ein: Es werden alle Tierärzte im Umkreis von 25 km angezeigt. Oder suche nach Name der Praxis. Klicke einen Eintrag, um die Anfrage an diesen Tierarzt zu senden.
+            </p>
             <input
               type="text"
               value={vetQuery}
               onChange={(e) => { setVetQuery(e.target.value); setSelectedVetId(null); }}
-              placeholder="PLZ oder Name der Praxis"
+              placeholder="PLZ (25 km Umkreis) oder Name der Praxis"
               className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500"
             />
             {vetsLoading && <p className="text-xs text-slate-400 mt-1">Tierärzte werden geladen…</p>}
-            {!vetsLoading && vetQuery.trim().length >= 1 && (
+            {vetResultsLoading && <p className="text-xs text-slate-400 mt-1">Suche im Umkreis von 25 km…</p>}
+            {!vetsLoading && !vetResultsLoading && vetQuery.trim().length >= 1 && (
               <ul className="mt-2 space-y-1">
                 {vetResults.length === 0 ? (
-                  <li className="text-sm text-slate-500 py-2">Keine Tierärzte gefunden.</li>
+                  <li className="text-sm text-slate-500 py-2">
+                    {isPlz ? 'Keine Tierärzte im Umkreis von 25 km gefunden.' : 'Keine Tierärzte gefunden.'}
+                  </li>
                 ) : (
-                  vetResults.map((v) => (
-                    <li
-                      key={v.id}
-                      onClick={() => setSelectedVetId((prev) => (prev === v.id ? null : v.id))}
-                      className={`flex justify-between items-center p-3 rounded-xl text-sm cursor-pointer transition-all ${
-                        selectedVetId === v.id ? 'bg-indigo-100 border-2 border-indigo-500' : 'bg-slate-50 hover:bg-slate-100'
-                      }`}
-                    >
-                      <span className="font-medium text-slate-800">{v.practice_name || '—'}</span>
-                      <span className="text-slate-500">{v.zip || '—'}</span>
-                    </li>
-                  ))
+                  vetResults.map((v) => {
+                    const withDist = 'distanceKm' in v ? v : null;
+                    return (
+                      <li
+                        key={v.id}
+                        onClick={() => setSelectedVetId((prev) => (prev === v.id ? null : v.id))}
+                        className={`flex justify-between items-center p-3 rounded-xl text-sm cursor-pointer transition-all ${
+                          selectedVetId === v.id ? 'bg-indigo-100 border-2 border-indigo-500' : 'bg-slate-50 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="font-medium text-slate-800">{v.practice_name || '—'}</span>
+                        <span className="text-slate-500">
+                          {(v.practice_zip ?? v.zip) || '—'}
+                          {withDist != null && <span className="ml-2 text-slate-400">· {withDist.distanceKm} km</span>}
+                        </span>
+                      </li>
+                    );
+                  })
                 )}
               </ul>
             )}
