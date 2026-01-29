@@ -95,14 +95,51 @@ export async function getSession() {
   return data.session;
 }
 
+/**
+ * Legt ein Profil aus user_metadata an, falls es fehlt (z. B. Trigger nicht ausgeführt
+ * oder Owner-Insert fehlgeschlagen). Idempotent bei Duplikat.
+ */
+async function ensureProfileFromMetadata(userId: string, meta: Record<string, unknown>): Promise<boolean> {
+  const role = (meta?.role as string) || 'owner';
+  if (role !== 'owner' && role !== 'vet') return false;
+  const payload: Record<string, unknown> = {
+    id: userId,
+    role,
+    first_name: meta?.first_name ?? null,
+    last_name: meta?.last_name ?? null,
+    stall_name: meta?.stall_name ?? null,
+    practice_name: meta?.practice_name ?? null,
+    zip: meta?.zip ?? null,
+    stable_id: meta?.stable_id ?? null,
+  };
+  const { error } = await supabase.from('profiles').insert(payload);
+  if (error) {
+    if (error.code === '23505') return true;
+    console.error('EquiManage ensureProfile:', error.message, error.code);
+    return false;
+  }
+  return true;
+}
+
 export async function getProfile(): Promise<Profile | null> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) return null;
-  const { data, error } = await supabase
+  const uid = session.user.id;
+  const meta = (session.user.user_metadata || {}) as Record<string, unknown>;
+
+  let { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', session.user.id)
+    .eq('id', uid)
     .single();
+
+  const noRow = error?.code === 'PGRST116' || (error && !data);
+  if (noRow && meta && (meta.role === 'owner' || meta.role === 'vet')) {
+    await ensureProfileFromMetadata(uid, meta);
+    const next = await supabase.from('profiles').select('*').eq('id', uid).single();
+    if (!next.error && next.data) return next.data as Profile;
+  }
+
   if (error) {
     console.error('EquiManage getProfile:', error.message, error.code);
     return null;

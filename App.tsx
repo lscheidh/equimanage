@@ -136,14 +136,15 @@ const App: React.FC = () => {
 
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const skipAuthTransitionRef = useRef(false);
 
   const ownerName = profile ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Nutzer' : '';
   const stallDisplay = profile?.stall_name ?? profile?.practice_name ?? '';
 
-  const loadProfileAndData = useCallback(async () => {
+  const loadProfileAndData = useCallback(async (): Promise<Profile | null> => {
     const p = await auth.getProfile();
     setProfile(p);
-    if (!p) return;
+    if (!p) return null;
     const role = p.role;
     setView(role === 'vet' ? UserView.VET : UserView.OWNER);
     setUserSettings({
@@ -160,6 +161,7 @@ const App: React.FC = () => {
     } else {
       setHorses([]);
     }
+    return p;
   }, []);
 
   useEffect(() => {
@@ -169,9 +171,17 @@ const App: React.FC = () => {
         const session = await auth.getSession();
         if (!mounted) return;
         if (session) {
-          await loadProfileAndData();
+          const p = await loadProfileAndData();
           if (!mounted) return;
-          setAuthState('AUTHENTICATED');
+          if (!p) {
+            try { await auth.signOut(); } catch (_) { /* ignore */ }
+            setAuthState('LANDING');
+            setProfile(null);
+            setHorses([]);
+            setView(UserView.OWNER);
+          } else {
+            setAuthState('AUTHENTICATED');
+          }
         } else {
           setAuthState('LANDING');
           setProfile(null);
@@ -197,10 +207,16 @@ const App: React.FC = () => {
         setHorses([]);
         setView(UserView.OWNER);
         clearAuthForms();
+        skipAuthTransitionRef.current = false;
         return;
       }
       if (session && event !== 'INITIAL_SESSION') {
+        if (skipAuthTransitionRef.current) {
+          skipAuthTransitionRef.current = false;
+          return;
+        }
         await loadProfileAndData();
+        if (!mounted) return;
         setAuthState('AUTHENTICATED');
       }
     });
@@ -425,7 +441,14 @@ const App: React.FC = () => {
               setAuthLoading(true);
               try {
                 await auth.signIn(loginEmail, loginPassword);
-                await loadProfileAndData();
+                const p = await loadProfileAndData();
+                if (!p) {
+                  try { await auth.signOut(); } catch (_) { /* ignore */ }
+                  setAuthError('Profil konnte nicht geladen werden. Bitte E-Mail bestätigen (Link in der Inbox) oder später erneut versuchen.');
+                  setProfile(null);
+                  setHorses([]);
+                  return;
+                }
                 setAuthState('AUTHENTICATED');
                 clearAuthForms();
               } catch (err) {
@@ -479,6 +502,7 @@ const App: React.FC = () => {
               }
               setAuthLoading(true);
               try {
+                skipAuthTransitionRef.current = true;
                 const stallName = createNewStable ? newStallName.trim() : (suggestedStables.find(s => s.id === selectedStableId)?.name ?? '');
                 await auth.signUpOwner({
                   email: regEmail,
@@ -496,6 +520,7 @@ const App: React.FC = () => {
               } catch (err) {
                 setAuthError(mapAuthError(err));
               } finally {
+                skipAuthTransitionRef.current = false;
                 setAuthLoading(false);
               }
             }}>
@@ -538,6 +563,7 @@ const App: React.FC = () => {
               setAuthError(null);
               setAuthLoading(true);
               try {
+                skipAuthTransitionRef.current = true;
                 await auth.signUpVet({ email: vetEmail, password: vetPassword, practiceName: vetPracticeName, zip: vetZip });
                 try { await auth.signOut(); } catch (_) { /* stay on LANDING */ }
                 clearAuthForms();
@@ -546,6 +572,7 @@ const App: React.FC = () => {
               } catch (err) {
                 setAuthError(mapAuthError(err));
               } finally {
+                skipAuthTransitionRef.current = false;
                 setAuthLoading(false);
               }
             }}>
