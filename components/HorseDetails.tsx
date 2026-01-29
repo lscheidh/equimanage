@@ -83,8 +83,14 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
       else onBulkAddVaccination(ids, { ...entryData, isBooster: entryData.sequence === 'Booster', status: 'pending' });
       setShowVaccModal(false);
     } else {
-      if (editingItem) onUpdateService(horse.id, { ...editingItem, ...entryData });
-      else onBulkAddService(ids, { ...entryData, type: entryData.type as ServiceType });
+      const servicePayload: Omit<ServiceRecord, 'id'> = {
+        type: entryData.type as ServiceType,
+        date: entryData.date,
+        notes: entryData.notes || undefined,
+        provider: entryData.provider || undefined,
+      };
+      if (editingItem) onUpdateService(horse.id, { ...editingItem, ...servicePayload });
+      else onBulkAddService(ids, servicePayload);
       setShowServiceModal(false);
     }
     setEditingItem(null);
@@ -277,7 +283,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Kategorie</label>
                 <select value={entryData.type} onChange={e => setEntryData({...entryData, type: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold">
-                  {showVaccModal ? (<><option>Influenza</option><option>Herpes</option><option>Tetanus</option></>) : (<><option>Hufschmied</option><option>Physio</option><option>Zahnarzt</option><option>Entwurmung</option></>)}
+                  {showVaccModal ? (<><option>Influenza</option><option>Herpes</option><option>Tetanus</option></>) : (<><option>Hufschmied</option><option>Entwurmung</option><option>Zahnarzt</option><option>Physio</option><option>Sonstiges</option></>)}
                 </select>
               </div>
               {showVaccModal && (

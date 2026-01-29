@@ -266,7 +266,6 @@ const App: React.FC = () => {
       alert(e instanceof Error ? e.message : 'Löschen fehlgeschlagen.');
     }
   };
-
   const handleCreateHorse = async (e: React.FormEvent) => {
     e.preventDefault();
     setHorseError(null);
@@ -274,8 +273,20 @@ const App: React.FC = () => {
       setHorseError('Transfer-Code wird noch nicht unterstützt.');
       return;
     }
-    if (!profile || profile.role !== 'owner') {
-      setHorseError('Nur Pferdebesitzer können Pferde anlegen.');
+    let effectiveProfile = profile;
+    if (!effectiveProfile) {
+      const p = await auth.getProfile();
+      if (p) {
+        setProfile(p);
+        effectiveProfile = p;
+      }
+    }
+    if (!effectiveProfile || effectiveProfile.role !== 'owner') {
+      setHorseError(
+        effectiveProfile
+          ? 'Nur Pferdebesitzer können Pferde anlegen.'
+          : 'Profil konnte nicht geladen werden. Bitte Seite neu laden.'
+      );
       return;
     }
     const name = (newHorseData.name ?? '').trim();
@@ -286,8 +297,9 @@ const App: React.FC = () => {
       return;
     }
     setHorseCreateLoading(true);
+    const ownerDisplayName = [effectiveProfile.first_name, effectiveProfile.last_name].filter(Boolean).join(' ') || 'Nutzer';
     try {
-      const horse = await horseService.createHorse(profile.id, ownerName, {
+      const horse = await horseService.createHorse(effectiveProfile.id, ownerDisplayName, {
         name,
         isoNr,
         feiNr,
