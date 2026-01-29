@@ -52,6 +52,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
     notes: '',
     sequence: 'Booster' as any
   });
+  const [selectedVaccTypes, setSelectedVaccTypes] = useState<string[]>(['Influenza']);
 
   // Smart Suggestions
   const suggestions = useMemo(() => {
@@ -78,14 +79,22 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
     setTargetId(null);
   };
 
-  const handleEntrySubmit = (e: React.FormEvent) => {
+  const handleEntrySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const ids = isBulkEntry ? selectedHorseIds : [horse.id];
     
     if (showVaccModal) {
-      if (editingItem) onUpdateVaccination(horse.id, { ...editingItem, ...entryData, isBooster: entryData.sequence === 'Booster' });
-      else onBulkAddVaccination(ids, { ...entryData, isBooster: entryData.sequence === 'Booster', status: 'pending' });
-      setShowVaccModal(false);
+      if (editingItem) {
+        onUpdateVaccination(horse.id, { ...editingItem, ...entryData, isBooster: entryData.sequence === 'Booster' });
+        setShowVaccModal(false);
+      } else {
+        const types = selectedVaccTypes.length ? selectedVaccTypes : [entryData.type];
+        const base = { ...entryData, isBooster: entryData.sequence === 'Booster', status: 'pending' as const };
+        for (const type of types) {
+          await onBulkAddVaccination(ids, { ...base, type });
+        }
+        setShowVaccModal(false);
+      }
     } else {
       const servicePayload: Omit<ServiceRecord, 'id'> = {
         type: entryData.type as ServiceType,
@@ -112,6 +121,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
     setEditingItem(null);
     setIsBulkEntry(false);
     setSelectedHorseIds([horse.id]);
+    setSelectedVaccTypes(['Influenza']);
     setEntryData({
       type: type === 'vacc' ? 'Influenza' : 'Hufschmied',
       date: new Date().toISOString().split('T')[0],
@@ -123,6 +133,24 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
     if (type === 'vacc') setShowVaccModal(true);
     else setShowServiceModal(true);
   };
+
+  const toggleVaccType = (t: string) => {
+    setSelectedVaccTypes(prev =>
+      prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]
+    );
+  };
+
+  const vaccsByDate = useMemo(() => {
+    const byDate = new Map<string, Vaccination[]>();
+    for (const v of horse.vaccinations) {
+      const d = v.date;
+      if (!byDate.has(d)) byDate.set(d, []);
+      byDate.get(d)!.push(v);
+    }
+    return Array.from(byDate.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([date, vaccs]) => ({ date, vaccs }));
+  }, [horse.vaccinations]);
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right duration-500">
@@ -185,19 +213,25 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest"><tr><th className="px-8 py-4">Datum</th><th className="px-8 py-4">Typ / Sequenz</th><th className="px-8 py-4 text-right">Aktion</th></tr></thead>
+                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest"><tr><th className="px-8 py-4">Datum</th><th className="px-8 py-4">Typ / Sequenz</th></tr></thead>
                 <tbody className="divide-y divide-slate-50">
-                  {horse.vaccinations.map(v => (
-                    <tr key={v.id} className="hover:bg-slate-50/50 group transition-colors">
-                      <td className="px-8 py-5 text-sm font-medium text-slate-600">{v.date}</td>
-                      <td className="px-8 py-5 font-bold text-slate-800">{v.type} <span className="text-[10px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-md ml-2">{v.sequence}</span></td>
-                      <td className="px-8 py-5 text-right space-x-1">
-                        <button onClick={() => { setEditingItem(v); setEntryData({...v}); setShowVaccModal(true); }} className="p-2.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                        </button>
-                        <button onClick={() => { setTargetId(v.id); setShowDeleteConfirm('vacc'); }} className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
+                  {vaccsByDate.map(({ date, vaccs }) => (
+                    <tr key={date} className="hover:bg-slate-50/50 group transition-colors">
+                      <td className="px-8 py-5 text-sm font-medium text-slate-600 align-top">{date}</td>
+                      <td className="px-8 py-5 align-top">
+                        <div className="flex flex-wrap gap-x-4 gap-y-2">
+                          {vaccs.map(v => (
+                            <span key={v.id} className="inline-flex items-center gap-1.5">
+                              <span className="font-bold text-slate-800">{v.type} <span className="text-[10px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-md ml-1">{v.sequence}</span></span>
+                              <button type="button" onClick={e => { e.stopPropagation(); setEditingItem(v); setEntryData({...v}); setShowVaccModal(true); }} className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Bearbeiten">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                              </button>
+                              <button type="button" onClick={e => { e.stopPropagation(); setTargetId(v.id); setShowDeleteConfirm('vacc'); }} className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Löschen">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                            </span>
+                          ))}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -328,9 +362,22 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
             <div className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Kategorie</label>
-                <select value={entryData.type} onChange={e => setEntryData({...entryData, type: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold">
-                  {showVaccModal ? (<><option>Influenza</option><option>Herpes</option><option>Tetanus</option><option>West-Nil-Virus</option></>) : (<><option>Hufschmied</option><option>Entwurmung</option><option>Zahnarzt</option><option>Physio</option><option>Sonstiges</option></>)}
-                </select>
+                {showVaccModal && !editingItem ? (
+                  <div className="flex flex-wrap gap-2">
+                    {['Influenza', 'Herpes', 'Tetanus', 'West-Nil-Virus'].map(t => (
+                      <label key={t} className={`inline-flex items-center gap-2 px-4 py-3 rounded-2xl border-2 cursor-pointer transition-all ${selectedVaccTypes.includes(t) ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 bg-slate-50 hover:bg-slate-100'}`}>
+                        <input type="checkbox" checked={selectedVaccTypes.includes(t)} onChange={() => toggleVaccType(t)} className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                        <span className="text-sm font-bold text-slate-800">{t}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : showVaccModal && editingItem ? (
+                  <input readOnly value={entryData.type} className="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-700" />
+                ) : (
+                  <select value={entryData.type} onChange={e => setEntryData({...entryData, type: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold">
+                    <option>Hufschmied</option><option>Entwurmung</option><option>Zahnarzt</option><option>Physio</option><option>Sonstiges</option>
+                  </select>
+                )}
               </div>
               {showVaccModal && (
                 <div className="space-y-2">
@@ -357,7 +404,13 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
             </div>
             <div className="flex gap-4 pt-4 border-t border-slate-50">
               <button type="button" onClick={() => { setShowVaccModal(false); setShowServiceModal(false); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-black rounded-2xl">Abbrechen</button>
-              <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl">Speichern</button>
+              <button
+                type="submit"
+                disabled={showVaccModal && !editingItem && selectedVaccTypes.length === 0}
+                className="flex-1 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Speichern
+              </button>
             </div>
           </form>
         </div>

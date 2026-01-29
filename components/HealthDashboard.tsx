@@ -150,7 +150,9 @@ export const HealthDashboard: React.FC<HealthDashboardProps> = ({
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {compliance.message}
+                      {compliance.status === ComplianceStatus.GREEN && compliance.nextDueInfo
+                        ? `${compliance.nextDueInfo.sequence} ${compliance.nextDueInfo.type} am ${compliance.nextDueInfo.dueDate}`
+                        : compliance.message}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button className="text-indigo-600 hover:text-indigo-800 font-semibold text-sm">Details</button>
