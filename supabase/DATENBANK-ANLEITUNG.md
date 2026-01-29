@@ -197,7 +197,7 @@ Die Werte aus **Supabase Dashboard → Settings → API** übernehmen. Optional 
 
 ### „Stall neu anlegen“ bei Registrierung
 
-Beim Anlegen eines neuen Stalls werden Name und PLZ in `stables` gespeichert. Die bestehende Tabelle (`name`, `zip`) reicht aus – **keine Anpassung in der Datenbank nötig**.
+Beim Anlegen eines neuen Stalls werden Name und PLZ in `stables` gespeichert. Die bestehende Tabelle (`name`, `zip`) reicht aus – **keine Anpassung in der Datenbank nötig**. Neu angelegte Ställe erscheinen bei der PLZ-Suche und stehen bei weiteren Registrierungen als Auswahl zur Verfügung.
 
 ### Tierarzt-Registrierung
 
