@@ -18,8 +18,11 @@ export const VALIDATION_PATTERNS = {
 
 const DAYS_V2_MIN = 28;
 const DAYS_V2_MAX = 70;
+/** V2 fällig 14 Tage vor Tag 28 → ab Tag 14; überfällig ab Tag 71. */
 const DAYS_V3_AFTER_V2 = 6 * 30 + 21;
 const DAYS_BOOSTER_AFTER_V3 = 6 * 30 + 21;
+/** V3/Booster überfällig ab 6 Mon + 22 Tage (Tag nach Fälligkeit). */
+const DAYS_OVERDUE_V3_BOOSTER = 6 * 30 + 22;
 const NOTIFY_DAYS_BEFORE = 14;
 
 export const VACC_TYPES = ['Influenza', 'Herpes', 'Tetanus', 'West-Nil-Virus'] as const;
@@ -66,12 +69,14 @@ export interface VaccComplianceResult {
  *
  * 1. Vollständige Historie: V1→V2→V3→Booster. Fälligkeit aus letzter Impfung, Intervallprüfung
  *    (V1→V2: 28–70 Tage; V2→V3, V3→Booster, Booster→Booster: 6 Mon + 21 Tage).
- *    Das Pferd ist bereits nach V2 konform (mit gültigem V1→V2), auch ohne V3/Booster.
- *    Ebenso nach V3 bis Booster-Fälligkeit. „Fällig“-Hinweise bleiben in dueItems, der
- *    Gesamtstatus bleibt konform bis zur Überfälligkeit (kritisch).
+ *
+ * Status: Konform → Fällig (14 Tage vor nächstem Termin) → Kritisch (überfällig).
+ * - V2: Frist 28–70 Tage nach V1. Fällig ab 14 Tage vor Tag 28 (= ab Tag 14), kritisch ab Tag 71.
+ * - V3: 6 Mon + 21 Tage nach V2. Fällig 14 Tage vor diesem Termin, kritisch ab 6 Mon + 22 Tage.
+ * - Booster: wie V3, Referenz V3.
  *
  * 2. Nur letzte Booster-Impfung: Ein Eintrag pro Typ mit sequence Booster / isBooster. Keine
- *    V1/V2/V3 nötig. Fälligkeit = Booster-Datum + 6 Mon + 21 Tage; konform bis Ablauf.
+ *    V1/V2/V3 nötig. Fälligkeit = Booster-Datum + 6 Mon + 21 Tage; gleiche Fällig-/Kritisch-Regeln.
  *
  * Mitteilungen: Kategorie + Sequenz; fällig: „bis DD.MM.YYYY (X Tage)“; kritisch: „seit DD.MM.YYYY (X Tage überfällig)“.
  */
@@ -166,7 +171,11 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
       continue;
     }
 
-    if (d > dueMax) {
+    const isOverdue =
+      phase === 'V3' || phase === 'Booster'
+        ? d >= DAYS_OVERDUE_V3_BOOSTER
+        : d > dueMax;
+    if (isOverdue) {
       const overdue = d - dueMax;
       const dueDate = dueDateMax;
       const msg = `${label} überfällig seit ${formatDate(dueDate)} (${overdue} Tage überfällig)`;
@@ -187,7 +196,10 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
           ? `${label} fällig bis ${formatDate(endDate)} (${daysLeftToEnd} Tage)`
           : `${label} in ${daysLeft} Tagen fällig bis ${formatDate(endDate)} (${daysLeftToEnd} Tage)`;
       dueItems.push({ type, sequence: phase, status: ComplianceStatus.YELLOW, message: msg });
-      /* Status bleibt konform: nur Überfälligkeit (kritisch) führt zu RED. Fälligkeit weiterhin in dueItems. */
+      if (worstStatus === ComplianceStatus.GREEN) {
+        worstStatus = ComplianceStatus.YELLOW;
+        worstMessage = msg;
+      }
       continue;
     }
 
