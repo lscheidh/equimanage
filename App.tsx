@@ -15,6 +15,7 @@ import { HORSE_PLACEHOLDER_IMAGE, uploadHorseImage } from './services/horseImage
 import { supabase } from './services/supabase';
 
 type ProfileSubView = 'stableOverview' | 'profile' | 'settings' | 'dashboard';
+type VetSubView = 'dashboard' | 'profile' | 'settings';
 type AuthState = 'LANDING' | 'LOGIN' | 'REGISTER_CHOICE' | 'REGISTER_OWNER' | 'REGISTER_VET' | 'AUTHENTICATED';
 
 function mapAuthError(err: unknown): string {
@@ -69,6 +70,14 @@ const App: React.FC = () => {
     firstName: '',
     lastName: '',
     stallName: '',
+    notifyVaccination: true,
+    notifyHoof: true,
+  });
+
+  const [vetSubView, setVetSubView] = useState<VetSubView>('dashboard');
+  const [vetSettings, setVetSettings] = useState({
+    practiceName: '',
+    zip: '',
     notifyVaccination: true,
     notifyHoof: true,
   });
@@ -136,14 +145,16 @@ const App: React.FC = () => {
     setRegistrationSuccessMessage(null);
   }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setShowProfileMenu(false);
-    try { await auth.signOut(); } catch (_) { /* ignorieren */ }
+    setShowNotifications(false);
+    setVetSubView('dashboard');
     setAuthState('LANDING');
     setProfile(null);
     setHorses([]);
     setView(UserView.OWNER);
     clearAuthForms();
+    auth.signOut().catch(() => {});
   };
 
   const profileRef = useRef<HTMLDivElement>(null);
@@ -166,6 +177,14 @@ const App: React.FC = () => {
       notifyVaccination: p.notify_vaccination ?? true,
       notifyHoof: p.notify_hoof ?? true,
     });
+    if (role === 'vet') {
+      setVetSettings({
+        practiceName: p.practice_name ?? '',
+        zip: p.zip ?? '',
+        notifyVaccination: p.notify_vaccination ?? true,
+        notifyHoof: p.notify_hoof ?? true,
+      });
+    }
     const name = [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Nutzer';
     if (role === 'owner') {
       const list = await horseService.fetchHorses(p.id, name);
@@ -745,15 +764,19 @@ const App: React.FC = () => {
     return (
       <div className="space-y-6">
         {ownerSubView === 'dashboard' ? (
-          <>
-            <OwnerTerminanfragen
-              profile={profile}
-              horses={horses}
-              onConfirmRequest={handleConfirmAppointmentRequest}
-              onSelectHorse={setSelectedHorse}
-            />
-            <ActionDashboard horses={horses} onSelectHorse={setSelectedHorse} onGoToStable={() => setOwnerSubView('stableOverview')} />
-          </>
+          <div className="flex flex-col lg:flex-row gap-6 items-stretch">
+            <div className="flex-1 min-w-0">
+              <ActionDashboard horses={horses} onSelectHorse={setSelectedHorse} onGoToStable={() => setOwnerSubView('stableOverview')} />
+            </div>
+            <aside className="lg:w-80 flex-shrink-0">
+              <OwnerTerminanfragen
+                profile={profile}
+                horses={horses}
+                onConfirmRequest={handleConfirmAppointmentRequest}
+                onSelectHorse={setSelectedHorse}
+              />
+            </aside>
+          </div>
         ) : (
           <HealthDashboard horses={horses} onSelectHorse={setSelectedHorse} onAddNewHorse={() => { setHorseError(null); setShowAddHorseModal(true); }} onTerminVereinbaren={() => setShowTerminModal(true)} onGoToDashboard={() => setOwnerSubView('dashboard')} />
         )}
@@ -765,7 +788,7 @@ const App: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-slate-50">
       <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 flex justify-between h-16 items-center">
-          <div className="flex items-center gap-2 cursor-pointer group" onClick={() => { if (authState === 'AUTHENTICATED') { setOwnerSubView('dashboard'); setSelectedHorse(null); } else if (authState !== 'LANDING') { setAuthState('LANDING'); setView(UserView.OWNER); clearAuthForms(); } }}>
+          <div className="flex items-center gap-2 cursor-pointer group" onClick={() => { if (authState === 'AUTHENTICATED') { setOwnerSubView('dashboard'); setVetSubView('dashboard'); setSelectedHorse(null); } else if (authState !== 'LANDING') { setAuthState('LANDING'); setView(UserView.OWNER); clearAuthForms(); } }}>
             <div className="w-9 h-9 bg-indigo-600 rounded-[0.75rem] flex items-center justify-center text-white group-hover:bg-indigo-700 transition-all">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /></svg>
             </div>
@@ -808,6 +831,12 @@ const App: React.FC = () => {
                         <button type="button" onClick={() => { setSelectedHorse(null); setOwnerSubView('settings'); setShowProfileMenu(false); setProfileSaveSuccess(false); setAuthError(null); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Einstellungen</button>
                       </>
                     )}
+                    {profile?.role === 'vet' && (
+                      <>
+                        <button type="button" onClick={() => { setVetSubView('profile'); setShowProfileMenu(false); setProfileSaveSuccess(false); setAuthError(null); setVetSettings({ ...vetSettings, practiceName: profile?.practice_name ?? '', zip: profile?.zip ?? '', notifyVaccination: profile?.notify_vaccination ?? true, notifyHoof: profile?.notify_hoof ?? true }); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Profil bearbeiten</button>
+                        <button type="button" onClick={() => { setVetSubView('settings'); setShowProfileMenu(false); setProfileSaveSuccess(false); setAuthError(null); setVetSettings({ ...vetSettings, practiceName: profile?.practice_name ?? '', zip: profile?.zip ?? '', notifyVaccination: profile?.notify_vaccination ?? true, notifyHoof: profile?.notify_hoof ?? true }); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Einstellungen</button>
+                      </>
+                    )}
                     <div className="border-t border-slate-50 mt-2 pt-2">
                       <button type="button" onClick={handleLogout} className="w-full text-left px-5 py-3 text-rose-600 font-bold hover:bg-rose-50 text-sm">Abmelden</button>
                     </div>
@@ -839,7 +868,64 @@ const App: React.FC = () => {
               </button>
             </div>
           </div>
-        ) : authState === 'AUTHENTICATED' ? (profile?.role === 'vet' ? <VetPortal profile={profile} /> : renderContent()) : renderAuth()}
+        ) : authState === 'AUTHENTICATED' ? (profile?.role === 'vet' ? (
+          (vetSubView === 'profile' || vetSubView === 'settings') ? (
+            <div className="max-w-4xl mx-auto bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+              <div className="bg-slate-900 p-10 text-white flex items-center gap-8">
+                <div className="w-28 h-28 bg-slate-800 rounded-full flex items-center justify-center text-4xl font-black border-4 border-slate-700 shadow-xl">M</div>
+                <div>
+                  <h2 className="text-4xl font-black tracking-tight">{vetSettings.practiceName || 'Tierarzt'}</h2>
+                  <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">PLZ {vetSettings.zip || '—'}</p>
+                </div>
+              </div>
+              <div className="p-10 space-y-10">
+                <p className="text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3">Deine Profileinstellungen änderst du über das <strong>Profil-Icon oben rechts</strong> (Profil bearbeiten / Einstellungen).</p>
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Praxisname</label><input type="text" value={vetSettings.practiceName} onChange={e => setVetSettings({ ...vetSettings, practiceName: e.target.value })} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                  <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">PLZ</label><input type="text" value={vetSettings.zip} onChange={e => setVetSettings({ ...vetSettings, zip: e.target.value })} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="z.B. 10115" /></div>
+                </div>
+                {vetSubView === 'settings' && (
+                  <div className="space-y-6 pt-10 border-t border-slate-100">
+                    <h3 className="text-lg font-bold">Benachrichtigungen</h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center p-5 bg-slate-50 rounded-3xl">
+                        <div><p className="font-bold">Fällige Impfungen</p><p className="text-xs text-slate-400">Hinweise zu Terminanfragen.</p></div>
+                        <button onClick={() => setVetSettings({ ...vetSettings, notifyVaccination: !vetSettings.notifyVaccination })} className={`w-14 h-7 rounded-full relative transition-all ${vetSettings.notifyVaccination ? 'bg-indigo-600' : 'bg-slate-300'}`}><div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${vetSettings.notifyVaccination ? 'left-8' : 'left-1'}`} /></button>
+                      </div>
+                      <div className="flex justify-between items-center p-5 bg-slate-50 rounded-3xl">
+                        <div><p className="font-bold">Allgemeine Erinnerungen</p><p className="text-xs text-slate-400">Weitere Benachrichtigungen.</p></div>
+                        <button onClick={() => setVetSettings({ ...vetSettings, notifyHoof: !vetSettings.notifyHoof })} className={`w-14 h-7 rounded-full relative transition-all ${vetSettings.notifyHoof ? 'bg-emerald-600' : 'bg-slate-300'}`}><div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${vetSettings.notifyHoof ? 'left-8' : 'left-1'}`} /></button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {authError && <p className="text-sm text-rose-600 font-medium">{authError}</p>}
+                {profileSaveSuccess && <p className="text-sm text-emerald-600 font-medium">Gespeichert. Du wirst zum Dashboard weitergeleitet.</p>}
+                <div className="flex gap-4">
+                  <button type="button" onClick={() => { setVetSubView('dashboard'); setAuthError(null); setProfileSaveSuccess(false); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-all">Abbrechen</button>
+                  <button type="button" onClick={async () => {
+                    setAuthError(null); setProfileSaveSuccess(false);
+                    if (!profile) return;
+                    try {
+                      const p = await auth.updateProfile({
+                        practice_name: vetSettings.practiceName || null,
+                        zip: vetSettings.zip || null,
+                        notify_vaccination: vetSettings.notifyVaccination,
+                        notify_hoof: vetSettings.notifyHoof,
+                      });
+                      setProfile(p);
+                      setProfileSaveSuccess(true);
+                      setVetSettings({ ...vetSettings, practiceName: p.practice_name ?? '', zip: p.zip ?? '', notifyVaccination: p.notify_vaccination ?? true, notifyHoof: p.notify_hoof ?? true });
+                      setTimeout(() => { setVetSubView('dashboard'); setProfileSaveSuccess(false); }, 1200);
+                    } catch (e) {
+                      setAuthError(mapAuthError(e));
+                    }
+                  }} className="flex-1 py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all">Speichern</button>
+                </div>
+              </div>
+            </div>
+          ) : <VetPortal profile={profile!} />
+        ) : renderContent()) : renderAuth()}
       </main>
 
       {showTerminModal && profile?.role === 'owner' && (

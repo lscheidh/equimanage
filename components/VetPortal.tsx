@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Profile } from '../types';
 import * as appointmentRequestService from '../services/appointmentRequestService';
+import { VetCalendar } from './VetCalendar';
 
 interface VetPortalProps {
   profile: Profile;
@@ -80,13 +81,14 @@ export const VetPortal: React.FC<VetPortalProps> = ({ profile }) => {
   }, [detail]);
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-slate-900">Terminanfragen</h1>
-        <p className="text-slate-500">Anfragen von Besitzern, die über die App gesendet wurden.</p>
-      </header>
+    <div className="flex flex-col lg:flex-row gap-6 items-stretch">
+      <div className="flex-1 min-w-0 space-y-6">
+        <header>
+          <h1 className="text-2xl font-bold text-slate-900">Terminanfragen</h1>
+          <p className="text-slate-500">Anfragen von Besitzern, die über die App gesendet wurden.</p>
+        </header>
 
-      {detail ? (
+        {detail ? (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -231,6 +233,11 @@ export const VetPortal: React.FC<VetPortalProps> = ({ profile }) => {
           )}
         </div>
       )}
+      </div>
+
+      <aside className="lg:w-80 flex-shrink-0">
+        <VetCalendar requests={requests} />
+      </aside>
     </div>
   );
 };

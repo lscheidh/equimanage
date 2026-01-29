@@ -33,6 +33,12 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
   const [sendLoading, setSendLoading] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
 
+  useEffect(() => {
+    if (!sendSuccess) return;
+    const t = setTimeout(() => onClose(), 2200);
+    return () => clearTimeout(t);
+  }, [sendSuccess, onClose]);
+
   const vetResults = useMemo(
     () => auth.filterVets(allVets, vetQuery),
     [allVets, vetQuery]
@@ -248,6 +254,26 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
     doc.save('EquiManage-Impfuebersicht-Tierarzt.pdf');
   }, [profile, userEmail, payloadHorses]);
 
+  if (sendSuccess) {
+    return (
+      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="presentation">
+        <div
+          className="bg-white rounded-[2.5rem] max-w-md w-full p-10 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col items-center justify-center text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+          </div>
+          <h3 className="text-xl font-black text-slate-900 mb-1">Anfrage gesendet</h3>
+          <p className="text-sm text-slate-500 mb-6">Die Terminanfrage wurde erfolgreich an den Tierarzt übermittelt.</p>
+          <button type="button" onClick={onClose} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700">
+            Schließen
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose} role="presentation">
       <div
@@ -421,7 +447,6 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
                 >
                   {sendLoading ? 'Wird gesendet…' : 'Anfrage senden'}
                 </button>
-                {sendSuccess && <span className="text-sm font-medium text-emerald-600">Anfrage wurde gesendet.</span>}
               </div>
             )}
           </section>

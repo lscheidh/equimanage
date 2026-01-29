@@ -85,7 +85,9 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
     
     if (showVaccModal) {
       if (editingItem) {
-        onUpdateVaccination(horse.id, { ...editingItem, ...entryData, isBooster: entryData.sequence === 'Booster' });
+        const payload = { ...editingItem, ...entryData, isBooster: entryData.sequence === 'Booster' };
+        if ((editingItem as Vaccination).status === 'planned') (payload as Vaccination).status = 'verified';
+        onUpdateVaccination(horse.id, payload as Vaccination);
         setShowVaccModal(false);
       } else {
         const types = selectedVaccTypes.length ? selectedVaccTypes : [entryData.type];
@@ -227,7 +229,19 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                                 <span className="font-bold text-slate-800">{v.type} <span className="text-[10px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-md ml-1">{v.sequence}</span></span>
                                 {isPlanned && <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Geplant</span>}
                                 {isPlanned ? (
-                                  <button type="button" onClick={e => { e.stopPropagation(); const today = new Date().toISOString().split('T')[0]; onUpdateVaccination(horse.id, { ...v, status: 'verified', date: today }); }} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 px-2 py-1 rounded-lg transition-all" title="Nach durchgeführter Impfung aktivieren">Aktivieren</button>
+                                  <button
+                                    type="button"
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      setEditingItem(v);
+                                      setEntryData({ ...v, date: new Date().toISOString().split('T')[0], vetName: v.vetName ?? '', provider: '', notes: '' });
+                                      setShowVaccModal(true);
+                                    }}
+                                    className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 px-2 py-1 rounded-lg transition-all"
+                                    title="Nach durchgeführter Impfung aktivieren"
+                                  >
+                                    Aktivieren
+                                  </button>
                                 ) : (
                                   <>
                                     <button type="button" onClick={e => { e.stopPropagation(); setEditingItem(v); setEntryData({...v}); setShowVaccModal(true); }} className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Bearbeiten">
@@ -350,7 +364,14 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
       {(showVaccModal || showServiceModal) && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <form onSubmit={handleEntrySubmit} className="bg-white rounded-[2.5rem] p-10 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <h4 className="text-2xl font-black text-slate-900">{editingItem ? 'Eintrag bearbeiten' : (showVaccModal ? 'Neue Impfung' : 'Neue Behandlung')}</h4>
+            <h4 className="text-2xl font-black text-slate-900">
+              {showVaccModal && editingItem && (editingItem as Vaccination).status === 'planned'
+                ? 'Impfung aktivieren'
+                : editingItem ? 'Eintrag bearbeiten' : (showVaccModal ? 'Neue Impfung' : 'Neue Behandlung')}
+            </h4>
+            {showVaccModal && editingItem && (editingItem as Vaccination).status === 'planned' && (
+              <p className="text-sm text-slate-500 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3">Impfung durchgeführt? Datum prüfen, bestätigen und aktivieren.</p>
+            )}
             {!editingItem && (
               <label className="flex items-center gap-4 p-4 bg-slate-50 rounded-[1.5rem] cursor-pointer hover:bg-slate-100 transition-all border border-slate-100">
                 <input type="checkbox" checked={isBulkEntry} onChange={e => setIsBulkEntry(e.target.checked)} className="w-6 h-6 rounded-lg border-slate-300 text-indigo-600 focus:ring-indigo-500" />
@@ -392,11 +413,15 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               {showVaccModal && (
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Impf-Sequenz</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[{ id: 'V1', label: 'V1', hint: '1. Grundimm.' }, { id: 'V2', label: 'V2', hint: '2. Grundimm. (28–70 Tage)' }, { id: 'V3', label: 'V3', hint: '6 Mon. + 21 Tage nach V2' }, { id: 'Booster', label: 'Booster', hint: '6 Mon. + 21 Tage nach V3' }].map(seq => (
-                      <button key={seq.id} type="button" onClick={() => setEntryData({...entryData, sequence: seq.id as any})} className={`p-3 rounded-2xl border-2 text-left transition-all ${entryData.sequence === seq.id ? 'border-indigo-600 bg-indigo-50 shadow-sm' : 'border-slate-100 bg-white'}`}><p className="font-black text-xs">{seq.label}</p><p className="text-[9px] text-slate-400 leading-tight">{seq.hint}</p></button>
-                    ))}
-                  </div>
+                  {editingItem && (editingItem as Vaccination).status === 'planned' ? (
+                    <input readOnly value={entryData.sequence ?? '—'} className="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-700" />
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {[{ id: 'V1', label: 'V1', hint: '1. Grundimm.' }, { id: 'V2', label: 'V2', hint: '2. Grundimm. (28–70 Tage)' }, { id: 'V3', label: 'V3', hint: '6 Mon. + 21 Tage nach V2' }, { id: 'Booster', label: 'Booster', hint: '6 Mon. + 21 Tage nach V3' }].map(seq => (
+                        <button key={seq.id} type="button" onClick={() => setEntryData({...entryData, sequence: seq.id as any})} className={`p-3 rounded-2xl border-2 text-left transition-all ${entryData.sequence === seq.id ? 'border-indigo-600 bg-indigo-50 shadow-sm' : 'border-slate-100 bg-white'}`}><p className="font-black text-xs">{seq.label}</p><p className="text-[9px] text-slate-400 leading-tight">{seq.hint}</p></button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">
@@ -413,13 +438,17 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               </div>
             </div>
             <div className="flex gap-4 pt-4 border-t border-slate-50">
-              <button type="button" onClick={() => { setShowVaccModal(false); setShowServiceModal(false); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-black rounded-2xl">Abbrechen</button>
+              <button type="button" onClick={() => { setShowVaccModal(false); setShowServiceModal(false); setEditingItem(null); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-black rounded-2xl">Abbrechen</button>
               <button
                 type="submit"
                 disabled={showVaccModal && !editingItem && selectedVaccTypes.length === 0}
-                className="flex-1 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`flex-1 py-4 font-black rounded-2xl shadow-xl disabled:opacity-50 disabled:cursor-not-allowed ${
+                  showVaccModal && editingItem && (editingItem as Vaccination).status === 'planned'
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                }`}
               >
-                Speichern
+                {showVaccModal && editingItem && (editingItem as Vaccination).status === 'planned' ? 'Aktivieren' : 'Speichern'}
               </button>
             </div>
           </form>
