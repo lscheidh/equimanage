@@ -96,14 +96,19 @@ export async function getSession() {
 }
 
 export async function getProfile(): Promise<Profile | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  await supabase.auth.refreshSession();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return null;
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', user.id)
+    .eq('id', session.user.id)
     .single();
-  if (error || !data) return null;
+  if (error) {
+    console.error('EquiManage getProfile:', error.message, error.code);
+    return null;
+  }
+  if (!data) return null;
   return data as Profile;
 }
 

@@ -641,10 +641,31 @@ const App: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-8">
         {!authReady ? (
           <div className="flex items-center justify-center min-h-[40vh] text-slate-400 font-medium">Laden…</div>
+        ) : authState === 'AUTHENTICATED' && profile === null ? (
+          <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4 space-y-6">
+            <p className="text-slate-600 font-medium">Profil konnte nicht geladen werden. Bitte Seite neu laden.</p>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <button
+                type="button"
+                disabled={authLoading}
+                onClick={async () => { setAuthError(null); setAuthLoading(true); await loadProfileAndData(); setAuthLoading(false); }}
+                className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-colors disabled:opacity-60"
+              >
+                {authLoading ? 'Laden…' : 'Seite neu laden'}
+              </button>
+              <button
+                type="button"
+                onClick={async () => { setShowProfileMenu(false); try { await auth.signOut(); } catch (_) { /* ignore */ } setAuthState('LANDING'); setProfile(null); setHorses([]); setView(UserView.OWNER); }}
+                className="px-6 py-3 bg-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-300 transition-colors"
+              >
+                Abmelden
+              </button>
+            </div>
+          </div>
         ) : authState === 'AUTHENTICATED' ? (profile?.role === 'vet' ? <VetPortal /> : renderContent()) : renderAuth()}
       </main>
 
-      {showAddHorseModal && (
+      {showAddHorseModal && profile?.role === 'owner' && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={closeAddHorseModal} role="presentation">
           <form onSubmit={handleCreateHorse} className="bg-white rounded-[2.5rem] p-10 max-w-xl w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-6" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center border-b border-slate-100 pb-6">
