@@ -376,7 +376,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
             )}
             {showVaccModal && !editingItem && (
               <p className="text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3">
-                <strong>Vollständige Serie</strong> (V1→V2→V3→Booster): Nach V3 ist das Pferd konform bis zur Booster-Fälligkeit (6 Mon. + 21 Tage nach V3), auch ohne Booster-Eintrag. <strong>Nur letzter Booster</strong>: Ein Eintrag pro Kategorie mit Sequenz „Booster“; Fälligkeit = Datum + 6 Mon. + 21 Tage.
+                <strong>Vollständige Serie</strong> (V1→V2→V3→Booster): Das Pferd ist bereits nach V2 konform (auch ohne V3/Booster); V3- und Booster-Fälligkeit bleiben bestehen. <strong>Nur letzter Booster</strong>: Ein Eintrag pro Kategorie mit Sequenz „Booster“; Fälligkeit = Datum + 6 Mon. + 21 Tage.
               </p>
             )}
             {!editingItem && (
