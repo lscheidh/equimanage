@@ -214,9 +214,6 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                 <h3 className="text-xl font-black text-slate-800 tracking-tight">Impfhistorie</h3>
                 <button onClick={() => openEntryModal('vacc')} className="px-5 py-2 text-xs font-black text-emerald-600 bg-emerald-50 rounded-2xl hover:bg-emerald-100 transition-all">+ NEU</button>
               </div>
-              <p className="mt-2 text-xs text-slate-500">
-                Vollständige Serie (V1→V2→V3→Booster) oder nur letzte Booster-Impfung pro Typ – Fälligkeit wird jeweils korrekt berechnet.
-              </p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -379,7 +376,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
             )}
             {showVaccModal && !editingItem && (
               <p className="text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3">
-                <strong>Vollständige Serie</strong> (V1→V2→V3→Booster) oder <strong>nur letzte Booster-Impfung</strong> pro Typ – beides möglich. Bei nur Booster: ein Eintrag pro Kategorie mit Sequenz „Booster“, Fälligkeit = Datum + 6 Mon. + 21 Tage.
+                <strong>Vollständige Serie</strong> (V1→V2→V3→Booster): Das Pferd ist bereits nach V2 konform (auch ohne V3/Booster); V3- und Booster-Fälligkeit bleiben bestehen. <strong>Nur letzter Booster</strong>: Ein Eintrag pro Kategorie mit Sequenz „Booster“; Fälligkeit = Datum + 6 Mon. + 21 Tage.
               </p>
             )}
             {!editingItem && (

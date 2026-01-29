@@ -66,6 +66,9 @@ export interface VaccComplianceResult {
  *
  * 1. Vollständige Historie: V1→V2→V3→Booster. Fälligkeit aus letzter Impfung, Intervallprüfung
  *    (V1→V2: 28–70 Tage; V2→V3, V3→Booster, Booster→Booster: 6 Mon + 21 Tage).
+ *    Das Pferd ist bereits nach V2 konform (mit gültigem V1→V2), auch ohne V3/Booster.
+ *    Ebenso nach V3 bis Booster-Fälligkeit. „Fällig“-Hinweise bleiben in dueItems, der
+ *    Gesamtstatus bleibt konform bis zur Überfälligkeit (kritisch).
  *
  * 2. Nur letzte Booster-Impfung: Ein Eintrag pro Typ mit sequence Booster / isBooster. Keine
  *    V1/V2/V3 nötig. Fälligkeit = Booster-Datum + 6 Mon + 21 Tage; konform bis Ablauf.
@@ -131,6 +134,7 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
         if (gap < DAYS_V2_MIN || gap > DAYS_V2_MAX) intervalOk = false;
       }
     } else {
+      /* V3 oder Booster: Nächste Fälligkeit = 6 Mon + 21 Tage nach letzter Impfung. Mit V3 (ohne Booster-Eintrag) ist das Pferd konform bis zu diesem Termin. */
       dueMin = dueMax = seq === 'V3' ? DAYS_V3_AFTER_V2 : DAYS_BOOSTER_AFTER_V3;
       phase = 'Booster';
       if (list.length >= 2) {
@@ -183,10 +187,7 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
           ? `${label} fällig bis ${formatDate(endDate)} (${daysLeftToEnd} Tage)`
           : `${label} in ${daysLeft} Tagen fällig bis ${formatDate(endDate)} (${daysLeftToEnd} Tage)`;
       dueItems.push({ type, sequence: phase, status: ComplianceStatus.YELLOW, message: msg });
-      if (worstStatus === ComplianceStatus.GREEN) {
-        worstStatus = ComplianceStatus.YELLOW;
-        worstMessage = msg;
-      }
+      /* Status bleibt konform: nur Überfälligkeit (kritisch) führt zu RED. Fälligkeit weiterhin in dueItems. */
       continue;
     }
 
