@@ -65,7 +65,7 @@ export const analyzeHealth = async (horse: Horse) => {
     Last deworming (Entwurmung): ${lastDewormingDate}
     
     Provide a professional assessment in German (max 100 words) for the owner. 
-    Focus on FEI compliance and suggest next steps for health maintenance.
+    Focus on vaccination compliance and health maintenance and suggest next steps.
   `;
 
   try {

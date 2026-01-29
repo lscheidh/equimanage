@@ -85,7 +85,7 @@ export const analyzeHealth = async (horse: Horse) => {
     Letzte Entwurmung: ${lastDewormingDate}
     
     Erstelle eine professionelle Bewertung auf Deutsch (max. 100 Wörter) für den Besitzer. 
-    Fokussiere dich auf FEI-Konformität und schlage nächste Schritte für die Gesundheitspflege vor.
+    Fokussiere dich auf Impfkonformität und Gesundheitspflege und schlage nächste Schritte vor.
   `;
 
   try {

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Horse, ComplianceStatus } from '../types';
-import { checkFEICompliance, checkHoofCareStatus, getStatusColor } from '../logic';
+import { checkVaccinationCompliance, checkHoofCareStatus, getStatusColor } from '../logic';
 
 interface ActionSubItem {
   type: 'VACC' | 'HOOF';
@@ -33,7 +33,7 @@ export const ActionDashboard: React.FC<ActionDashboardProps> = ({ horses, onSele
       const tasks: ActionSubItem[] = [];
       
       // Check Vaccination
-      const compliance = checkFEICompliance(horse);
+      const compliance = checkVaccinationCompliance(horse);
       if (compliance.status !== ComplianceStatus.GREEN) {
         tasks.push({
           type: 'VACC',

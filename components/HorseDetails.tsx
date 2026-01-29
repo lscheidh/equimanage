@@ -1,7 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Horse, Vaccination, ServiceRecord, ServiceType, ComplianceStatus } from '../types';
-import { checkFEICompliance, getStatusColor } from '../logic';
+import { checkVaccinationCompliance, getStatusColor, getStatusLabel } from '../logic';
 
 interface HorseDetailsProps {
   horse: Horse;
@@ -22,7 +22,8 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
   horse, allHorses, onBack, onDelete, onUpdateHorse, onBulkAddVaccination, onUpdateVaccination, onDeleteVaccination,
   onBulkAddService, onUpdateService, onDeleteService, onTransfer
 }) => {
-  const compliance = checkFEICompliance(horse);
+  const compliance = checkVaccinationCompliance(horse);
+  const statusLabel = getStatusLabel(compliance.status);
   
   const [showEditHorseMask, setShowEditHorseMask] = useState(false);
   const [showMoreInfo, setShowMoreInfo] = useState(false);
@@ -39,6 +40,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
   const [transferCode, setTransferCode] = useState<string | null>(null);
 
   const [editedHorse, setEditedHorse] = useState<Horse>(horse);
+  useEffect(() => { if (!showEditHorseMask) setEditedHorse(horse); }, [horse, showEditHorseMask]);
 
   const [entryData, setEntryData] = useState({
     type: 'Influenza',
@@ -141,7 +143,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
           <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden group">
             <div className="relative h-56 overflow-hidden">
               <img src={horse.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={horse.name} />
-              <div className={`absolute top-4 right-4 px-3 py-1.5 rounded-full text-[10px] font-black text-white uppercase tracking-widest shadow-lg ${getStatusColor(compliance.status)}`}>{compliance.status}</div>
+              <div className={`absolute top-4 right-4 px-3 py-1.5 rounded-full text-[10px] font-black text-white uppercase tracking-widest shadow-lg ${getStatusColor(compliance.status)}`}>{statusLabel}</div>
             </div>
             <div className="p-8 space-y-5">
               <div>
@@ -151,7 +153,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               
               <div className="pt-5 border-t border-slate-50 space-y-3">
                 <div className="flex justify-between items-center"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ISO-Nr.</span><span className="font-mono text-xs text-slate-700 font-bold">{horse.isoNr}</span></div>
-                <div className="flex justify-between items-center"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">FEI-Nr.</span><span className="font-mono text-xs text-slate-700 font-bold">{horse.feiNr || '-'}</span></div>
+                <div className="flex justify-between items-center"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reg.-Nr.</span><span className="font-mono text-xs text-slate-700 font-bold">{horse.feiNr || '—'}</span></div>
                 
                 {showMoreInfo && (
                   <div className="pt-3 space-y-3 border-t border-slate-50 mt-3 animate-in slide-in-from-top-4">
@@ -240,19 +242,42 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
             <div className="grid grid-cols-2 gap-6">
               <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename</label><input type="text" value={editedHorse.name} onChange={e => setEditedHorse({...editedHorse, name: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold" /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN)</label><input type="text" value={editedHorse.isoNr} onChange={e => setEditedHorse({...editedHorse, isoNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
-              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FEI-Nr.</label><input type="text" value={editedHorse.feiNr} onChange={e => setEditedHorse({...editedHorse, feiNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
-              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr</label><input type="number" value={editedHorse.birthYear} onChange={e => setEditedHorse({...editedHorse, birthYear: parseInt(e.target.value)})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
+              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Reg.-Nr.</label><input type="text" value={editedHorse.feiNr} onChange={e => setEditedHorse({...editedHorse, feiNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
+              <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Profilbild (URL)</label><input type="url" value={editedHorse.image} onChange={e => setEditedHorse({...editedHorse, image: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="https://…" /></div>
+              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr</label><input type="number" value={editedHorse.birthYear} onChange={e => setEditedHorse({...editedHorse, birthYear: parseInt(e.target.value, 10) || new Date().getFullYear()})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zuchtverband</label><input type="text" value={editedHorse.breedingAssociation} onChange={e => setEditedHorse({...editedHorse, breedingAssociation: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Rasse</label><input type="text" value={editedHorse.breed} onChange={e => setEditedHorse({...editedHorse, breed: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Chip-ID</label><input type="text" value={editedHorse.chipId} onChange={e => setEditedHorse({...editedHorse, chipId: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geschlecht</label><select value={editedHorse.gender} onChange={e => setEditedHorse({...editedHorse, gender: e.target.value as any})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold"><option>Wallach</option><option>Stute</option><option>Hengst</option></select></div>
-              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Gewicht (kg)</label><input type="number" value={editedHorse.weightKg} onChange={e => setEditedHorse({...editedHorse, weightKg: parseInt(e.target.value)})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
+              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Gewicht (kg)</label><input type="number" value={editedHorse.weightKg} onChange={e => setEditedHorse({...editedHorse, weightKg: parseInt(e.target.value, 10) || 0})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
             </div>
             <div className="flex gap-4 pt-6 border-t border-slate-100">
               <button type="button" onClick={() => { setEditedHorse(horse); setShowEditHorseMask(false); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-black rounded-2xl">Abbrechen</button>
               <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100">Daten speichern</button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Lösch-Bestätigung */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md z-[105] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-6">
+            <h4 className="text-xl font-black text-slate-900">
+              {showDeleteConfirm === 'horse' && 'Pferd löschen?'}
+              {showDeleteConfirm === 'vacc' && 'Impfung löschen?'}
+              {showDeleteConfirm === 'service' && 'Behandlung löschen?'}
+            </h4>
+            <p className="text-slate-600">
+              {showDeleteConfirm === 'horse' && 'Dieses Pferd und alle zugehörigen Daten werden unwiderruflich gelöscht.'}
+              {showDeleteConfirm === 'vacc' && 'Diesen Impfeintrag unwiderruflich löschen?'}
+              {showDeleteConfirm === 'service' && 'Diesen Behandlungs-Eintrag unwiderruflich löschen?'}
+            </p>
+            <div className="flex gap-4 pt-4">
+              <button type="button" onClick={() => { setShowDeleteConfirm(null); setTargetId(null); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-all">Abbrechen</button>
+              <button type="button" onClick={confirmDelete} className="flex-1 py-4 bg-rose-600 text-white font-bold rounded-2xl hover:bg-rose-700 transition-all">Löschen</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -283,14 +308,14 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Kategorie</label>
                 <select value={entryData.type} onChange={e => setEntryData({...entryData, type: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold">
-                  {showVaccModal ? (<><option>Influenza</option><option>Herpes</option><option>Tetanus</option></>) : (<><option>Hufschmied</option><option>Entwurmung</option><option>Zahnarzt</option><option>Physio</option><option>Sonstiges</option></>)}
+                  {showVaccModal ? (<><option>Influenza</option><option>Herpes</option><option>Tetanus</option><option>West-Nil-Virus</option></>) : (<><option>Hufschmied</option><option>Entwurmung</option><option>Zahnarzt</option><option>Physio</option><option>Sonstiges</option></>)}
                 </select>
               </div>
               {showVaccModal && (
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">FEI Impf-Sequenz</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Impf-Sequenz</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {[{ id: 'V1', label: 'V1', hint: '1. Grundimm.' }, { id: 'V2', label: 'V2', hint: '2. Grundimm. (21-60d)' }, { id: 'V3', label: 'V3', hint: '3. Grundimm.' }, { id: 'Booster', label: 'Booster', hint: 'Auffrischung' }].map(seq => (
+                    {[{ id: 'V1', label: 'V1', hint: '1. Grundimm.' }, { id: 'V2', label: 'V2', hint: '2. Grundimm. (28–70 Tage)' }, { id: 'V3', label: 'V3', hint: '6 Mon. + 21 Tage nach V2' }, { id: 'Booster', label: 'Booster', hint: '6 Mon. + 21 Tage nach V3' }].map(seq => (
                       <button key={seq.id} type="button" onClick={() => setEntryData({...entryData, sequence: seq.id as any})} className={`p-3 rounded-2xl border-2 text-left transition-all ${entryData.sequence === seq.id ? 'border-indigo-600 bg-indigo-50 shadow-sm' : 'border-slate-100 bg-white'}`}><p className="font-black text-xs">{seq.label}</p><p className="text-[9px] text-slate-400 leading-tight">{seq.hint}</p></button>
                     ))}
                   </div>

@@ -5,7 +5,7 @@ import { HealthDashboard } from './components/HealthDashboard';
 import { ActionDashboard } from './components/ActionDashboard';
 import { HorseDetails } from './components/HorseDetails';
 import { VetPortal } from './components/VetPortal';
-import { checkFEICompliance, checkHoofCareStatus } from './logic';
+import { checkVaccinationCompliance, checkHoofCareStatus } from './logic';
 import * as auth from './services/authService';
 import * as horseService from './services/horseService';
 import { supabase } from './services/supabase';
@@ -30,7 +30,7 @@ function mapAuthError(err: unknown): string {
 function mapHorseError(err: unknown, context?: 'create' | 'update' | 'delete'): string {
   const msg = err instanceof Error ? err.message : String(err ?? '');
   const s = msg.toLowerCase();
-  if (s.includes('duplicate') || s.includes('unique') || s.includes('already exists')) return 'Pferd mit dieser ISO- oder FEI-Nr. existiert bereits.';
+  if (s.includes('duplicate') || s.includes('unique') || s.includes('already exists')) return 'Pferd mit dieser ISO- oder Reg.-Nr. existiert bereits.';
   if (s.includes('foreign key') || s.includes('owner')) return 'Besitzer nicht gefunden. Bitte Seite neu laden.';
   if (s.includes('fetch') || s.includes('network')) return 'Netzwerkfehler. Bitte Verbindung prüfen und erneut versuchen.';
   if (msg) return msg;
@@ -240,13 +240,13 @@ const App: React.FC = () => {
 
   const notifications = horses.flatMap(horse => {
     const list = [];
-    const compliance = checkFEICompliance(horse);
+    const compliance = checkVaccinationCompliance(horse);
     if (compliance.status !== ComplianceStatus.GREEN) {
       list.push({ horse, status: compliance.status, message: compliance.message });
     }
     const hoof = checkHoofCareStatus(horse);
     if (hoof.status !== ComplianceStatus.GREEN) {
-      list.push({ horse, status: hoof.status, message: hoof.status === ComplianceStatus.RED ? 'Schmied überfällig' : 'Schmied bald fällig' });
+      list.push({ horse, status: hoof.status, message: 'Hufschmied fällig' });
     }
     return list;
   });
@@ -306,7 +306,7 @@ const App: React.FC = () => {
       u = { ...h, vaccinations: h.vaccinations.filter(v => v.id !== vaccId) };
       return u;
     }));
-    if (u) await persistHorse(u);
+    if (u) { await persistHorse(u); if (selectedHorse?.id === horseId) setSelectedHorse(u); }
   };
 
   const handleBulkAddService = async (horseIds: string[], service: Omit<ServiceRecord, 'id'>) => {
@@ -338,7 +338,7 @@ const App: React.FC = () => {
       u = { ...h, serviceHistory: h.serviceHistory.filter(x => x.id !== serviceId) };
       return u;
     }));
-    if (u) await persistHorse(u);
+    if (u) { await persistHorse(u); if (selectedHorse?.id === horseId) setSelectedHorse(u); }
   };
 
   const handleDeleteHorse = async (id: string) => {
@@ -381,20 +381,21 @@ const App: React.FC = () => {
       setHorseError('Pferdename und ISO-Nr. (UELN) sind Pflichtangaben.');
       return;
     }
-    const feiNr = (newHorseData.feiNr ?? '').trim();
+    const opt = (s: string | undefined) => ((s ?? '').trim() || '—');
+    const feiNr = opt(newHorseData.feiNr as string);
     setHorseCreateLoading(true);
     const ownerDisplayName = [effectiveProfile.first_name, effectiveProfile.last_name].filter(Boolean).join(' ') || 'Nutzer';
     try {
       const horse = await horseService.createHorse(effectiveProfile.id, ownerDisplayName, {
         name,
         isoNr,
-        feiNr: feiNr || '—',
+        feiNr,
         birthYear: newHorseData.birthYear ?? new Date().getFullYear(),
-        breedingAssociation: (newHorseData.breedingAssociation ?? '').trim(),
-        breed: (newHorseData.breed ?? '').trim(),
+        breedingAssociation: opt(newHorseData.breedingAssociation as string),
+        breed: opt(newHorseData.breed as string),
         gender: (newHorseData.gender as Horse['gender']) ?? 'Wallach',
-        color: (newHorseData.color ?? '').trim(),
-        chipId: (newHorseData.chipId ?? '').trim() || 'Nicht angegeben',
+        color: opt(newHorseData.color as string),
+        chipId: opt(newHorseData.chipId as string),
         image: `https://picsum.photos/seed/${name}/400/300`,
         weightKg: newHorseData.weightKg ?? 600,
         vaccinations: [],
@@ -424,7 +425,7 @@ const App: React.FC = () => {
               <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /></svg>
             </div>
             <h1 className="text-6xl font-black text-slate-900 mb-4 tracking-tighter">EquiManage</h1>
-            <p className="text-xl text-slate-500 max-w-xl mb-12 font-medium">Das digitale Zuhause für dein Pferdemanagement & FEI-Konformität.</p>
+            <p className="text-xl text-slate-500 max-w-xl mb-12 font-medium">Das digitale Zuhause für dein Pferdemanagement.</p>
             <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
               <button type="button" onClick={() => { setAuthState('LOGIN'); setRegistrationSuccessMessage(null); }} className="flex-1 bg-slate-900 text-white font-bold py-4 rounded-2xl hover:bg-slate-800 transition-all shadow-xl">Anmelden</button>
               <button type="button" onClick={() => { setAuthState('REGISTER_CHOICE'); setRegistrationSuccessMessage(null); }} className="flex-1 bg-white border-2 border-slate-200 text-slate-900 font-bold py-4 rounded-2xl hover:bg-slate-50 transition-all">Registrieren</button>
@@ -474,7 +475,7 @@ const App: React.FC = () => {
               <button type="button" onClick={() => setAuthState('REGISTER_OWNER')} className="bg-white p-10 rounded-[3rem] border-2 border-slate-100 hover:border-indigo-600 transition-all group shadow-sm hover:shadow-2xl">
                 <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-all"><svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></div>
                 <h3 className="text-2xl font-bold mb-2">Besitzer</h3>
-                <p className="text-slate-400 text-sm">Bestandsverwaltung, Dokumentation und FEI-Monitoring.</p>
+                <p className="text-slate-400 text-sm">Bestandsverwaltung, Dokumentation und Impfmonitoring.</p>
               </button>
               <button type="button" onClick={() => { setAuthState('REGISTER_VET'); setView(UserView.VET); }} className="bg-white p-10 rounded-[3rem] border-2 border-slate-100 hover:border-emerald-600 transition-all group shadow-sm hover:shadow-2xl">
                 <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:bg-emerald-600 group-hover:text-white transition-all"><svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg></div>
@@ -632,7 +633,7 @@ const App: React.FC = () => {
               <h3 className="text-lg font-bold">Benachrichtigungen</h3>
               <div className="space-y-4">
                 <div className="flex justify-between items-center p-5 bg-slate-50 rounded-3xl">
-                  <div><p className="font-bold">Fällige Impfungen</p><p className="text-xs text-slate-400">Erinnere mich 14 Tage vor Ablauf der FEI-Frist.</p></div>
+                  <div><p className="font-bold">Fällige Impfungen</p><p className="text-xs text-slate-400">Erinnere mich 14 Tage vor dem frühesten Fälligkeitstag.</p></div>
                   <button onClick={() => setUserSettings({...userSettings, notifyVaccination: !userSettings.notifyVaccination})} className={`w-14 h-7 rounded-full relative transition-all ${userSettings.notifyVaccination ? 'bg-indigo-600' : 'bg-slate-300'}`}><div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${userSettings.notifyVaccination ? 'left-8' : 'left-1'}`} /></button>
                 </div>
                 <div className="flex justify-between items-center p-5 bg-slate-50 rounded-3xl">
@@ -720,8 +721,8 @@ const App: React.FC = () => {
                   <div className="absolute right-0 mt-3 w-60 bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 py-2 animate-in zoom-in-95 duration-200">
                     {profile?.role === 'owner' && (
                       <>
-                        <button type="button" onClick={() => { setOwnerSubView('profile'); setShowProfileMenu(false); setProfileSaveSuccess(false); setAuthError(null); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Profil bearbeiten</button>
-                        <button type="button" onClick={() => { setOwnerSubView('settings'); setShowProfileMenu(false); setProfileSaveSuccess(false); setAuthError(null); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Einstellungen</button>
+                        <button type="button" onClick={() => { setSelectedHorse(null); setOwnerSubView('profile'); setShowProfileMenu(false); setProfileSaveSuccess(false); setAuthError(null); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Profil bearbeiten</button>
+                        <button type="button" onClick={() => { setSelectedHorse(null); setOwnerSubView('settings'); setShowProfileMenu(false); setProfileSaveSuccess(false); setAuthError(null); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Einstellungen</button>
                       </>
                     )}
                     <div className="border-t border-slate-50 mt-2 pt-2">
@@ -772,7 +773,7 @@ const App: React.FC = () => {
               <div className="grid grid-cols-2 gap-5 max-h-[50vh] overflow-y-auto pr-3 custom-scrollbar">
                 <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename *</label><input required type="text" value={newHorseData.name} onChange={e => setNewHorseData({...newHorseData, name: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Name" /></div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN) *</label><input required type="text" value={newHorseData.isoNr} onChange={e => setNewHorseData({...newHorseData, isoNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="z.B. DE..." /></div>
-                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FEI-Nr.</label><input type="text" value={newHorseData.feiNr} onChange={e => setNewHorseData({...newHorseData, feiNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="z.B. 10... (optional)" /></div>
+                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Reg.-Nr.</label><input type="text" value={newHorseData.feiNr} onChange={e => setNewHorseData({...newHorseData, feiNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="optional" /></div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr *</label><input required type="number" value={newHorseData.birthYear} onChange={e => setNewHorseData({...newHorseData, birthYear: parseInt(e.target.value, 10) || new Date().getFullYear()})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
                 <div className="col-span-2 pt-4 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Optionale Details</div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zuchtverband</label><input type="text" value={newHorseData.breedingAssociation} onChange={e => setNewHorseData({...newHorseData, breedingAssociation: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="z.B. Oldenburger Verband" /></div>
