@@ -8,6 +8,7 @@ import { VetPortal } from './components/VetPortal';
 import { checkVaccinationCompliance, checkHoofCareStatus } from './logic';
 import * as auth from './services/authService';
 import * as horseService from './services/horseService';
+import { HORSE_PLACEHOLDER_IMAGE, uploadHorseImage } from './services/horseImageService';
 import { supabase } from './services/supabase';
 
 type ProfileSubView = 'stableOverview' | 'profile' | 'settings' | 'dashboard';
@@ -83,8 +84,9 @@ const App: React.FC = () => {
 
   const [newHorseData, setNewHorseData] = useState<Partial<Horse>>({
     name: '', isoNr: '', feiNr: '', birthYear: new Date().getFullYear(), breedingAssociation: '',
-    breed: '', gender: 'Wallach', color: '', weightKg: 600,
+    breed: '', color: '',
   });
+  const [newHorseImageFile, setNewHorseImageFile] = useState<File | null>(null);
   const [redeemCode, setRedeemCode] = useState('');
   const [horseCreateLoading, setHorseCreateLoading] = useState(false);
   const [horseError, setHorseError] = useState<string | null>(null);
@@ -94,11 +96,12 @@ const App: React.FC = () => {
 
   const defaultHorseData = (): Partial<Horse> => ({
     name: '', isoNr: '', feiNr: '', birthYear: new Date().getFullYear(), breedingAssociation: '',
-    breed: '', gender: 'Wallach', color: '', weightKg: 600,
+    breed: '', color: '',
   });
   const closeAddHorseModal = () => {
     setShowAddHorseModal(false);
     setNewHorseData(defaultHorseData());
+    setNewHorseImageFile(null);
     setRedeemCode('');
     setAddMode('manual');
     setHorseError(null);
@@ -286,7 +289,10 @@ const App: React.FC = () => {
       updated.push(next);
       return next;
     }));
-    for (const h of updated) await persistHorse(h);
+    for (const h of updated) {
+      await persistHorse(h);
+      if (selectedHorse?.id === h.id) setSelectedHorse(h);
+    }
   };
 
   const handleUpdateVaccination = async (horseId: string, updatedVacc: Vaccination) => {
@@ -296,7 +302,7 @@ const App: React.FC = () => {
       u = { ...h, vaccinations: h.vaccinations.map(v => v.id === updatedVacc.id ? updatedVacc : v) };
       return u;
     }));
-    if (u) await persistHorse(u);
+    if (u) { await persistHorse(u); if (selectedHorse?.id === horseId) setSelectedHorse(u); }
   };
 
   const handleDeleteVaccination = async (horseId: string, vaccId: string) => {
@@ -318,7 +324,10 @@ const App: React.FC = () => {
       updated.push(next);
       return next;
     }));
-    for (const h of updated) await persistHorse(h);
+    for (const h of updated) {
+      await persistHorse(h);
+      if (selectedHorse?.id === h.id) setSelectedHorse(h);
+    }
   };
 
   const handleUpdateService = async (horseId: string, updatedService: ServiceRecord) => {
@@ -328,7 +337,7 @@ const App: React.FC = () => {
       u = { ...h, serviceHistory: h.serviceHistory.map(x => x.id === updatedService.id ? updatedService : x) };
       return u;
     }));
-    if (u) await persistHorse(u);
+    if (u) { await persistHorse(u); if (selectedHorse?.id === horseId) setSelectedHorse(u); }
   };
 
   const handleDeleteService = async (horseId: string, serviceId: string) => {
@@ -386,6 +395,10 @@ const App: React.FC = () => {
     setHorseCreateLoading(true);
     const ownerDisplayName = [effectiveProfile.first_name, effectiveProfile.last_name].filter(Boolean).join(' ') || 'Nutzer';
     try {
+      let imageUrl = HORSE_PLACEHOLDER_IMAGE;
+      if (newHorseImageFile) {
+        imageUrl = await uploadHorseImage(newHorseImageFile, effectiveProfile.id, null);
+      }
       const horse = await horseService.createHorse(effectiveProfile.id, ownerDisplayName, {
         name,
         isoNr,
@@ -393,11 +406,11 @@ const App: React.FC = () => {
         birthYear: newHorseData.birthYear ?? new Date().getFullYear(),
         breedingAssociation: opt(newHorseData.breedingAssociation as string),
         breed: opt(newHorseData.breed as string),
-        gender: (newHorseData.gender as Horse['gender']) ?? 'Wallach',
-        color: opt(newHorseData.color as string),
+        gender: null,
+        color: '—',
         chipId: opt(newHorseData.chipId as string),
-        image: `https://picsum.photos/seed/${name}/400/300`,
-        weightKg: newHorseData.weightKg ?? 600,
+        image: imageUrl,
+        weightKg: null,
         vaccinations: [],
         serviceHistory: [],
       });
@@ -779,6 +792,23 @@ const App: React.FC = () => {
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zuchtverband</label><input type="text" value={newHorseData.breedingAssociation} onChange={e => setNewHorseData({...newHorseData, breedingAssociation: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="z.B. Oldenburger Verband" /></div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Rasse</label><input type="text" value={newHorseData.breed} onChange={e => setNewHorseData({...newHorseData, breed: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Chip-ID</label><input type="text" value={newHorseData.chipId} onChange={e => setNewHorseData({...newHorseData, chipId: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                <div className="col-span-2 space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Profilbild</label>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-100 transition-colors text-sm font-medium text-slate-700">
+                      <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      <span>Foto aufnehmen / hochladen</span>
+                      <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={e => { const f = e.target.files?.[0]; setNewHorseImageFile(f || null); }} />
+                    </label>
+                    {newHorseImageFile && (
+                      <>
+                        <span className="text-sm text-emerald-600 font-medium">✓ {newHorseImageFile.name}</span>
+                        <button type="button" onClick={() => setNewHorseImageFile(null)} className="text-sm text-rose-600 font-medium hover:underline">Entfernen</button>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-400">Auf dem Handy: Kamera nutzen. Sonst: Bild auswählen. Ohne Foto wird ein Platzhalter verwendet.</p>
+                </div>
               </div>
             ) : (
               <div className="py-12 space-y-6 text-center">

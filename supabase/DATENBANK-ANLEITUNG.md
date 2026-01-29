@@ -164,9 +164,23 @@ CREATE TRIGGER on_auth_user_created
 
 ---
 
+## 3c. Storage: Pferdebilder (Upload von Handy/Kamera)
+
+Für **Profilbild-Upload** (Foto aufnehmen / hochladen) wird ein Supabase-Storage-Bucket genutzt. **Keine Änderung an der Tabelle `horses`** – `image` bleibt ein TEXT-Feld (URL).
+
+Führe das Skript **`supabase/migrations/003_horse_images_storage.sql`** im SQL Editor aus (oder die Migrations per Supabase CLI). Es legt an:
+
+- **Bucket** `horse-images` (öffentlich lesbar, 5 MB pro Datei, nur Bildformate)
+- **RLS-Policies**: Authentifizierte Nutzer können nur unter ihrem eigenen Ordner (`owner_id`) hochladen, ändern und löschen.
+
+Pfade: `{owner_id}/{horse_id}_{uuid}.{ext}` bzw. `{owner_id}/new_{uuid}.{ext}` vor Pferd-Anlage.
+
+---
+
 ## 4. Prüfen
 
 - **Table Editor**: Tabellen `stables`, `profiles`, `horses` vorhanden.
+- **Storage**: Bucket `horse-images` vorhanden (falls 3c ausgeführt).
 - **Authentication**: E-Mail/Passwort-Login ist standardmäßig aktiv (Provider „Email“).
 - **Settings → API**: `Project URL` und `anon` Key für `.env` notieren.
 
