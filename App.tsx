@@ -15,7 +15,12 @@ type ProfileSubView = 'stableOverview' | 'profile' | 'settings' | 'dashboard';
 type AuthState = 'LANDING' | 'LOGIN' | 'REGISTER_CHOICE' | 'REGISTER_OWNER' | 'REGISTER_VET' | 'AUTHENTICATED';
 
 function mapAuthError(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err ?? '');
+  let msg = '';
+  if (err instanceof Error) msg = err.message;
+  else if (err != null && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') msg = (err as { message: string }).message;
+  else if (typeof err === 'string') msg = err;
+  else msg = String(err ?? '');
+  if (msg === '[object Object]' || !msg.trim()) return 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.';
   const s = msg.toLowerCase();
   if (s.includes('invalid login') || s.includes('invalid_credentials') || s.includes('invalid grant')) return 'E-Mail oder Passwort falsch. Bitte prüfe deine Eingaben.';
   if (s.includes('email not confirmed')) return 'E-Mail noch nicht bestätigt. Bitte klicke den Link in der Bestätigungsmail.';
@@ -241,18 +246,19 @@ const App: React.FC = () => {
     return () => { cancelled = true; };
   }, [regZip]);
 
-  const notifications = horses.flatMap(horse => {
-    const list = [];
-    const compliance = checkVaccinationCompliance(horse);
-    if (compliance.status !== ComplianceStatus.GREEN) {
-      list.push({ horse, status: compliance.status, message: compliance.message });
-    }
-    const hoof = checkHoofCareStatus(horse);
-    if (hoof.status !== ComplianceStatus.GREEN) {
-      list.push({ horse, status: hoof.status, message: 'Hufschmied fällig' });
-    }
-    return list;
-  });
+  const notifications = horses
+    .map(horse => {
+      const compliance = checkVaccinationCompliance(horse);
+      const hoof = checkHoofCareStatus(horse);
+      const items: { status: ComplianceStatus; message: string }[] = [];
+      for (const di of compliance.dueItems) items.push({ status: di.status, message: di.message });
+      if (hoof.status !== ComplianceStatus.GREEN) {
+        items.push({ status: hoof.status, message: hoof.status === ComplianceStatus.RED ? 'Hufschmied überfällig (über 8 Wochen)' : 'Hufschmied fällig' });
+      }
+      if (items.length === 0) return null;
+      return { horse, items };
+    })
+    .filter((n): n is { horse: Horse; items: { status: ComplianceStatus; message: string }[] } => n != null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -515,6 +521,7 @@ const App: React.FC = () => {
                 return;
               }
               setAuthLoading(true);
+              setAuthError(null);
               try {
                 skipAuthTransitionRef.current = true;
                 const stallName = createNewStable ? newStallName.trim() : (suggestedStables.find(s => s.id === selectedStableId)?.name ?? '');
@@ -527,10 +534,10 @@ const App: React.FC = () => {
                   stableId: createNewStable ? null : selectedStableId || null,
                   stallName: stallName || 'Neuer Stall',
                 });
-                try { await auth.signOut(); } catch (_) { /* stay on LANDING */ }
+                try { await auth.signOut(); } catch (_) { /* ignoriert */ }
                 clearAuthForms();
                 setAuthState('LANDING');
-                setRegistrationSuccessMessage('Bitte bestätige deine E-Mail (Link zugeschickt) und melde dich danach an.');
+                setRegistrationSuccessMessage('Bitte bestätige deine E-Mail (Link wurde zugeschickt) und melde dich danach an.');
               } catch (err) {
                 setAuthError(mapAuthError(err));
               } finally {
@@ -576,13 +583,14 @@ const App: React.FC = () => {
               e.preventDefault();
               setAuthError(null);
               setAuthLoading(true);
+              setAuthError(null);
               try {
                 skipAuthTransitionRef.current = true;
                 await auth.signUpVet({ email: vetEmail, password: vetPassword, practiceName: vetPracticeName, zip: vetZip });
-                try { await auth.signOut(); } catch (_) { /* stay on LANDING */ }
+                try { await auth.signOut(); } catch (_) { /* ignoriert */ }
                 clearAuthForms();
                 setAuthState('LANDING');
-                setRegistrationSuccessMessage('Bitte bestätige deine E-Mail (Link zugeschickt) und melde dich danach an.');
+                setRegistrationSuccessMessage('Bitte bestätige deine E-Mail (Link wurde zugeschickt) und melde dich danach an.');
               } catch (err) {
                 setAuthError(mapAuthError(err));
               } finally {
@@ -719,8 +727,13 @@ const App: React.FC = () => {
                       <div className="p-3 border-b border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mitteilungen</div>
                       <div className="max-h-80 overflow-y-auto custom-scrollbar">
                         {notifications.length > 0 ? notifications.map((n, i) => (
-                          <div key={i} className="p-4 hover:bg-slate-50 cursor-pointer rounded-2xl border-b border-slate-50 last:border-0" onClick={() => { setSelectedHorse(n.horse); setShowNotifications(false); }}>
-                            <p className="text-sm font-bold text-slate-800">{n.horse.name}</p><p className="text-[10px] text-slate-500 font-medium">{n.message}</p>
+                          <div key={i} className="p-4 hover:bg-slate-50 cursor-pointer rounded-2xl border-b border-slate-50 last:border-0" onClick={() => { setOwnerSubView('stableOverview'); setSelectedHorse(n.horse); setShowNotifications(false); }}>
+                            <p className="text-sm font-bold text-slate-800">{n.horse.name}</p>
+                            <ul className="mt-1.5 space-y-0.5">
+                              {n.items.map((it, j) => (
+                                <li key={j} className="text-[10px] text-slate-500 font-medium">{it.message}</li>
+                              ))}
+                            </ul>
                           </div>
                         )) : <div className="p-10 text-center text-slate-400 text-xs italic">Keine neuen Mitteilungen</div>}
                       </div>

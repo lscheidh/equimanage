@@ -38,9 +38,27 @@ export const HorseCard: React.FC<HorseCardProps> = ({ horse, onClick }) => {
           <div className="flex justify-between"><span>Geb.:</span> <span className="text-slate-700 font-medium">{horse.birthYear}</span></div>
         </div>
         
-        <div className="flex items-center gap-2 text-[10px] text-slate-600 border-t border-slate-100 pt-3">
-          <div className={`w-2 h-2 rounded-full ${colorClass} animate-pulse`} />
-          <span className="font-semibold truncate uppercase tracking-tighter">{compliance.message}</span>
+        <div className="border-t border-slate-100 pt-3 space-y-1">
+          {compliance.status === ComplianceStatus.GREEN && compliance.nextDueInfo ? (
+            <div className="flex items-center gap-2 text-[10px] text-slate-600">
+              <div className={`w-2 h-2 rounded-full ${colorClass} animate-pulse shrink-0`} />
+              <span className="font-semibold truncate uppercase tracking-tighter">{compliance.nextDueInfo.sequence} {compliance.nextDueInfo.type} am {compliance.nextDueInfo.dueDate}</span>
+            </div>
+          ) : compliance.dueItems.length > 0 ? (
+            <ul className="space-y-0.5">
+              {compliance.dueItems.map((di, j) => (
+                <li key={j} className="flex items-start gap-1.5 text-[10px] text-slate-600">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1 ${getStatusColor(di.status)}`} />
+                  <span className="line-clamp-1">{di.message}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="flex items-center gap-2 text-[10px] text-slate-600">
+              <div className={`w-2 h-2 rounded-full ${colorClass} shrink-0`} />
+              <span className="font-semibold uppercase tracking-tighter">{compliance.message}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
