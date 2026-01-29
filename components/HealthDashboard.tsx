@@ -148,17 +148,17 @@ export const HealthDashboard: React.FC<HealthDashboardProps> = ({
                         {getStatusLabel(compliance.status)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">
+                    <td className="px-6 py-4 text-sm text-slate-600 max-w-xs">
                       {compliance.status === ComplianceStatus.GREEN && compliance.nextDueInfo ? (
-                        `${compliance.nextDueInfo.sequence} ${compliance.nextDueInfo.type} am ${compliance.nextDueInfo.dueDate}`
+                        <span className="break-words">{compliance.nextDueInfo.sequence} {compliance.nextDueInfo.type} am {compliance.nextDueInfo.dueDate}</span>
                       ) : compliance.dueItems.length > 0 ? (
                         <ul className="space-y-0.5">
                           {compliance.dueItems.map((di, j) => (
-                            <li key={j}>{di.message}</li>
+                            <li key={j} className="break-words">{di.message}</li>
                           ))}
                         </ul>
                       ) : (
-                        compliance.message
+                        <span className="break-words">{compliance.message}</span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">

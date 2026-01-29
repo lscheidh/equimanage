@@ -19,6 +19,18 @@ export type RegisterVetInput = {
   zip: string;
 };
 
+export type RegisterBothInput = {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  zip: string;
+  stableId: string | null;
+  stallName: string;
+  practiceName: string;
+  practiceZip: string;
+};
+
 export async function signUpOwner(data: RegisterOwnerInput) {
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email: data.email,
@@ -79,6 +91,52 @@ export async function signUpVet(data: RegisterVetInput) {
   return authData;
 }
 
+export async function signUpBoth(data: RegisterBothInput) {
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email: data.email,
+    password: data.password,
+    options: {
+      data: {
+        role: 'owner',
+        first_name: data.firstName,
+        last_name: data.lastName,
+        zip: data.zip,
+        stable_id: data.stableId,
+        stall_name: data.stallName,
+        practice_name: data.practiceName,
+        practice_zip: data.practiceZip,
+      },
+    },
+  });
+  if (authError) throw authError;
+  const uid = authData.user?.id;
+  if (!uid) throw new Error('Registrierung fehlgeschlagen.');
+
+  let stableId = data.stableId;
+  if (!stableId && data.stallName && data.zip) {
+    const { data: s } = await supabase
+      .from('stables')
+      .insert({ name: data.stallName, zip: data.zip })
+      .select('id')
+      .single();
+    stableId = s?.id ?? null;
+  }
+
+  const { error: profileError } = await supabase.from('profiles').insert({
+    id: uid,
+    role: 'owner',
+    first_name: data.firstName,
+    last_name: data.lastName,
+    stall_name: data.stallName || null,
+    zip: data.zip,
+    stable_id: stableId,
+    practice_name: data.practiceName || null,
+    practice_zip: data.practiceZip || null,
+  });
+  if (profileError) throw profileError;
+  return authData;
+}
+
 export async function signIn(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
@@ -125,6 +183,7 @@ async function ensureProfileFromMetadata(userId: string, meta: Record<string, un
     stall_name: meta?.stall_name ?? null,
     practice_name: meta?.practice_name ?? null,
     zip: meta?.zip ?? null,
+    practice_zip: meta?.practice_zip ?? null,
     stable_id: meta?.stable_id ?? null,
   };
   const { error } = await supabase.from('profiles').insert(payload);
@@ -172,6 +231,7 @@ export async function updateProfile(updates: Partial<Profile>) {
   if (updates.stall_name !== undefined) payload.stall_name = updates.stall_name;
   if (updates.practice_name !== undefined) payload.practice_name = updates.practice_name;
   if (updates.zip !== undefined) payload.zip = updates.zip;
+  if (updates.practice_zip !== undefined) payload.practice_zip = updates.practice_zip;
   if (updates.stable_id !== undefined) payload.stable_id = updates.stable_id;
   if (updates.notify_vaccination !== undefined) payload.notify_vaccination = updates.notify_vaccination;
   if (updates.notify_hoof !== undefined) payload.notify_hoof = updates.notify_hoof;
@@ -206,23 +266,25 @@ export async function createStable(name: string, zip: string): Promise<Stable> {
   return { id: data.id, name: data.name, zip: data.zip, created_at: data.created_at };
 }
 
-export type VetSearchResult = { id: string; practice_name: string | null; zip: string | null };
+export type VetSearchResult = { id: string; practice_name: string | null; zip: string | null; practice_zip?: string | null };
+
+export type VetSearchResultWithDistance = VetSearchResult & { distanceKm: number };
 
 /**
- * Lädt alle registrierten Tierärzte (für Suche nach PLZ / Name).
- * Erfordert Migration 004 (profiles_select_vets).
+ * Lädt alle registrierten Tierärzte (role=vet oder practice_name gesetzt, duale Rolle).
+ * Erfordert Migration 004 + 007 (profiles_select_vets, profiles_select_vets_dual).
  */
 export async function listVets(): Promise<VetSearchResult[]> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, practice_name, zip')
-    .eq('role', 'vet');
+    .select('id, practice_name, zip, practice_zip')
+    .or('role.eq.vet,practice_name.not.is.null');
   if (error) return [];
   return (data ?? []) as VetSearchResult[];
 }
 
 /**
- * Filtert Tierärzte nach PLZ oder Praxis-/Firmennamen (lokal).
+ * Filtert Tierärzte nach Praxis-/Firmennamen (lokal).
  */
 export function filterVets(list: VetSearchResult[], query: string): VetSearchResult[] {
   const q = (query || '').trim().toLowerCase();
@@ -232,4 +294,30 @@ export function filterVets(list: VetSearchResult[], query: string): VetSearchRes
       (r.practice_name ?? '').toLowerCase().includes(q) ||
       (r.zip ?? '').toLowerCase().includes(q)
   );
+}
+
+/**
+ * Tierärzte im Umkreis von radiusKm um die gegebene PLZ (Geocoding via api.zippopotam.us).
+ * Sortiert nach Entfernung. Erfordert 5-stellige PLZ.
+ */
+export async function listVetsWithinRadius(
+  userPlz: string,
+  radiusKm: number
+): Promise<VetSearchResultWithDistance[]> {
+  const { geocodePlz, distanceKm } = await import('./plzService');
+  const userCoord = await geocodePlz(userPlz);
+  if (!userCoord) return [];
+  const vets = await listVets();
+  const out: VetSearchResultWithDistance[] = [];
+  const vetPlz = (v: VetSearchResult) => (v.practice_zip ?? v.zip ?? '').replace(/\D/g, '').slice(0, 5);
+  for (const v of vets) {
+    const plz = vetPlz(v);
+    if (plz.length < 5) continue;
+    const coord = await geocodePlz(plz);
+    if (!coord) continue;
+    const d = distanceKm(userCoord, coord);
+    if (d <= radiusKm) out.push({ ...v, distanceKm: Math.round(d * 10) / 10 });
+  }
+  out.sort((a, b) => a.distanceKm - b.distanceKm);
+  return out;
 }

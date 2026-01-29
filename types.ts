@@ -69,6 +69,8 @@ export interface Profile {
   stall_name: string | null;
   practice_name: string | null;
   zip: string | null;
+  /** PLZ der Praxis (bei dualer Rolle Besitzer + Tierarzt). */
+  practice_zip: string | null;
   stable_id: string | null;
   notify_vaccination: boolean;
   notify_hoof: boolean;

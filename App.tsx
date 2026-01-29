@@ -12,11 +12,12 @@ import * as auth from './services/authService';
 import * as appointmentRequestService from './services/appointmentRequestService';
 import * as horseService from './services/horseService';
 import { HORSE_PLACEHOLDER_IMAGE, uploadHorseImage } from './services/horseImageService';
+import * as rimondo from './services/rimondoService';
 import { supabase } from './services/supabase';
 
 type ProfileSubView = 'stableOverview' | 'settings' | 'dashboard';
 type VetSubView = 'dashboard' | 'settings';
-type AuthState = 'LANDING' | 'LOGIN' | 'REGISTER_CHOICE' | 'REGISTER_OWNER' | 'REGISTER_VET' | 'AUTHENTICATED';
+type AuthState = 'LANDING' | 'LOGIN' | 'REGISTER_CHOICE' | 'REGISTER_OWNER' | 'REGISTER_VET' | 'REGISTER_BOTH' | 'AUTHENTICATED';
 
 function mapAuthError(err: unknown): string {
   let msg = '';
@@ -123,6 +124,8 @@ const App: React.FC = () => {
   const [redeemCode, setRedeemCode] = useState('');
   const [horseCreateLoading, setHorseCreateLoading] = useState(false);
   const [horseError, setHorseError] = useState<string | null>(null);
+  const [rimondoUrl, setRimondoUrl] = useState('');
+  const [rimondoLoading, setRimondoLoading] = useState(false);
 
   const [registrationSuccessMessage, setRegistrationSuccessMessage] = useState<string | null>(null);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
@@ -136,6 +139,7 @@ const App: React.FC = () => {
     setNewHorseData(defaultHorseData());
     setNewHorseImageFile(null);
     setRedeemCode('');
+    setRimondoUrl('');
     setAddMode('manual');
     setHorseError(null);
   };
@@ -179,12 +183,16 @@ const App: React.FC = () => {
 
   const ownerName = profile ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Nutzer' : '';
   const stallDisplay = profile?.stall_name ?? profile?.practice_name ?? '';
+  const canActAsOwner = !!profile && (profile.role === 'owner' || !!profile.stable_id || !!(profile.stall_name && profile.stall_name.trim()));
+  const canActAsVet = !!profile && (profile.role === 'vet' || !!(profile.practice_name && profile.practice_name.trim()));
+  const canSwitchProfile = canActAsOwner && canActAsVet;
 
   const loadProfileAndData = useCallback(async (): Promise<Profile | null> => {
     const p = await auth.getProfile();
     setProfile(p);
     if (!p) return null;
     const role = p.role;
+    const hasVet = !!(p.practice_name && p.practice_name.trim());
     setView(role === 'vet' ? UserView.VET : UserView.OWNER);
     setUserSettings({
       firstName: p.first_name ?? '',
@@ -196,10 +204,10 @@ const App: React.FC = () => {
     });
     const email = await auth.getCurrentUserEmail();
     setUserEmail(email ?? null);
-    if (role === 'vet') {
+    if (role === 'vet' || hasVet) {
       setVetSettings({
         practiceName: p.practice_name ?? '',
-        zip: p.zip ?? '',
+        zip: p.practice_zip ?? p.zip ?? '',
         notifyVaccination: p.notify_vaccination ?? true,
         notifyHoof: p.notify_hoof ?? true,
       });
@@ -577,16 +585,21 @@ const App: React.FC = () => {
           <div className="max-w-4xl mx-auto text-center px-4">
             <h2 className="text-4xl font-bold mb-2">Wie möchtest du starten?</h2>
             <p className="text-slate-500 mb-12">Wähle den passenden Account-Typ für deine Bedürfnisse.</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <button type="button" onClick={() => setAuthState('REGISTER_OWNER')} className="bg-white p-10 rounded-[3rem] border-2 border-slate-100 hover:border-indigo-600 transition-all group shadow-sm hover:shadow-2xl">
-                <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-all"><svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></div>
-                <h3 className="text-2xl font-bold mb-2">Besitzer</h3>
-                <p className="text-slate-400 text-sm">Bestandsverwaltung, Dokumentation und Impfmonitoring.</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <button type="button" onClick={() => setAuthState('REGISTER_OWNER')} className="bg-white p-8 rounded-[3rem] border-2 border-slate-100 hover:border-indigo-600 transition-all group shadow-sm hover:shadow-2xl">
+                <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-all"><svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></div>
+                <h3 className="text-xl font-bold mb-1">Besitzer</h3>
+                <p className="text-slate-400 text-xs">Bestand, Impfmonitoring.</p>
               </button>
-              <button type="button" onClick={() => { setAuthState('REGISTER_VET'); setView(UserView.VET); }} className="bg-white p-10 rounded-[3rem] border-2 border-slate-100 hover:border-emerald-600 transition-all group shadow-sm hover:shadow-2xl">
-                <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:bg-emerald-600 group-hover:text-white transition-all"><svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg></div>
-                <h3 className="text-2xl font-bold mb-2">Tierarzt / Dienstleister</h3>
-                <p className="text-slate-400 text-sm">Patientenmanagement, Verifizierung und Tourenplanung.</p>
+              <button type="button" onClick={() => { setAuthState('REGISTER_VET'); setView(UserView.VET); }} className="bg-white p-8 rounded-[3rem] border-2 border-slate-100 hover:border-emerald-600 transition-all group shadow-sm hover:shadow-2xl">
+                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-all"><svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg></div>
+                <h3 className="text-xl font-bold mb-1">Tierarzt</h3>
+                <p className="text-slate-400 text-xs">Terminanfragen, Touren.</p>
+              </button>
+              <button type="button" onClick={() => setAuthState('REGISTER_BOTH')} className="bg-white p-8 rounded-[3rem] border-2 border-slate-100 hover:border-violet-600 transition-all group shadow-sm hover:shadow-2xl">
+                <div className="w-16 h-16 bg-violet-50 text-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-violet-600 group-hover:text-white transition-all"><svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg></div>
+                <h3 className="text-xl font-bold mb-1">Beides</h3>
+                <p className="text-slate-400 text-xs">Ein Account, Wechsel möglich.</p>
               </button>
             </div>
             <button type="button" onClick={() => { setAuthState('LANDING'); clearAuthForms(); }} className="mt-12 text-slate-400 font-bold hover:text-slate-600">Zurück</button>
@@ -697,6 +710,85 @@ const App: React.FC = () => {
             </form>
           </div>
         );
+      case 'REGISTER_BOTH': {
+        return (
+          <div className="max-w-2xl mx-auto bg-white rounded-[3rem] p-12 shadow-xl border border-slate-100 animate-in slide-in-from-bottom-8">
+            <h2 className="text-3xl font-bold mb-2">Besitzer + Tierarzt</h2>
+            <p className="text-slate-500 text-sm mb-8">Ein Account – du kannst zwischen den Profilen wechseln.</p>
+            <form className="space-y-5" onSubmit={async (e) => {
+              e.preventDefault();
+              setAuthError(null);
+              if (!createNewStable && !selectedStableId) {
+                setAuthError('Bitte wähle einen Stall oder „Stall neu anlegen“.');
+                return;
+              }
+              if (createNewStable && !newStallName.trim()) {
+                setAuthError('Bitte gib einen Namen für den neuen Stall ein.');
+                return;
+              }
+              setAuthLoading(true);
+              setAuthError(null);
+              try {
+                skipAuthTransitionRef.current = true;
+                const stallName = createNewStable ? newStallName.trim() : (suggestedStables.find(s => s.id === selectedStableId)?.name ?? '');
+                await auth.signUpBoth({
+                  email: regEmail,
+                  password: regPassword,
+                  firstName: regFirstName,
+                  lastName: regLastName,
+                  zip: regZip,
+                  stableId: createNewStable ? null : selectedStableId || null,
+                  stallName: stallName || 'Neuer Stall',
+                  practiceName: vetPracticeName,
+                  practiceZip: vetZip,
+                });
+                try { await auth.signOut(); } catch (_) { /* ignoriert */ }
+                clearAuthForms();
+                setAuthState('LANDING');
+                setRegistrationSuccessMessage('Bitte bestätige deine E-Mail (Link wurde zugeschickt) und melde dich danach an.');
+              } catch (err) {
+                setAuthError(mapAuthError(err));
+              } finally {
+                skipAuthTransitionRef.current = false;
+                setAuthLoading(false);
+              }
+            }}>
+              <div className="text-sm font-bold text-slate-600 border-b border-slate-100 pb-2">Besitzer</div>
+              <div className="grid grid-cols-2 gap-4">
+                <input type="text" placeholder="Vorname" value={regFirstName} onChange={e => setRegFirstName(e.target.value)} className="p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+                <input type="text" placeholder="Nachname" value={regLastName} onChange={e => setRegLastName(e.target.value)} className="p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+              </div>
+              <input type="text" value={regZip} onChange={e => { setRegZip(e.target.value); setCreateNewStable(false); setSelectedStableId(''); setNewStallName(''); }} placeholder="Stall-Suche via PLZ" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+              {regZip.length >= 2 && (
+                <div className="space-y-2 p-3 bg-indigo-50 rounded-2xl">
+                  {suggestedStables.map(s => (
+                    <button key={s.id} type="button" onClick={() => { setSelectedStableId(s.id); setCreateNewStable(false); setNewStallName(''); }} className={`w-full p-3 rounded-xl text-left text-sm font-bold border ${selectedStableId === s.id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}`}>{s.name}</button>
+                  ))}
+                  <button type="button" onClick={() => { setCreateNewStable(true); setSelectedStableId(''); setNewStallName(''); }} className={`w-full p-3 rounded-xl text-left text-sm font-bold border-2 border-dashed ${createNewStable ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-300 text-slate-400'}`}>+ Stall neu anlegen</button>
+                  {createNewStable && (
+                    <div className="pt-2 space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 block">Name des neuen Stalls</label>
+                      <input type="text" value={newStallName} onChange={e => setNewStallName(e.target.value)} placeholder="z.B. Reitstall Sonnenhof" className="w-full p-3 bg-white border-2 border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400" />
+                      <p className="text-xs text-slate-500">PLZ: {regZip}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="text-sm font-bold text-slate-600 border-b border-slate-100 pb-2 pt-4">Tierarzt / Praxis</div>
+              <input type="text" placeholder="Praxis / Firmenname" value={vetPracticeName} onChange={e => setVetPracticeName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
+              <input type="text" placeholder="Standort Praxis (PLZ)" value={vetZip} onChange={e => setVetZip(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
+              <div className="text-sm font-bold text-slate-600 border-b border-slate-100 pb-2 pt-4">Account</div>
+              <input type="email" placeholder="E-Mail" value={regEmail} onChange={e => setRegEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+              <input type="password" placeholder="Passwort" value={regPassword} onChange={e => setRegPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+              {authError && <p className="text-sm text-rose-600 font-medium">{authError}</p>}
+              <div className="flex gap-4 mt-6">
+                <button type="button" onClick={() => { setAuthState('REGISTER_CHOICE'); clearAuthForms(); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-all">Zurück</button>
+                <button type="submit" disabled={authLoading} className="flex-1 py-4 bg-violet-600 text-white font-bold rounded-xl shadow-xl hover:bg-violet-700 transition-all disabled:opacity-60">Registrierung abschließen</button>
+              </div>
+            </form>
+          </div>
+        );
+      }
       default: return null;
     }
   };
@@ -829,7 +921,7 @@ const App: React.FC = () => {
           </div>
           {authState === 'AUTHENTICATED' && (
             <div className="flex items-center gap-3">
-              {profile?.role === 'owner' && (
+              {view === UserView.OWNER && (
                 <div className="relative" ref={notificationRef}>
                   <button onClick={() => setShowNotifications(!showNotifications)} className="p-2 text-slate-400 relative hover:bg-slate-100 rounded-xl transition-all">
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
@@ -860,11 +952,18 @@ const App: React.FC = () => {
                 </button>
                 {showProfileMenu && (
                   <div className="absolute right-0 mt-3 w-60 bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 py-2 animate-in zoom-in-95 duration-200">
-                    {profile?.role === 'owner' && (
+                    {canSwitchProfile && (
+                      <>
+                        <button type="button" onClick={() => { setView(UserView.OWNER); setOwnerSubView('dashboard'); setVetSubView('dashboard'); setShowProfileMenu(false); }} className={`w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold ${view === UserView.OWNER ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'}`}>Als Besitzer anzeigen</button>
+                        <button type="button" onClick={() => { setView(UserView.VET); setVetSubView('dashboard'); setShowProfileMenu(false); }} className={`w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold ${view === UserView.VET ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700'}`}>Als Tierarzt anzeigen</button>
+                        <div className="border-t border-slate-100 my-2" />
+                      </>
+                    )}
+                    {view === UserView.OWNER && canActAsOwner && (
                       <button type="button" onClick={() => { setSelectedHorse(null); setOwnerSubView('settings'); setShowProfileMenu(false); setProfileSaveSuccess(false); setAuthError(null); setSettingsPassword(''); setUserSettings((s) => ({ ...s, firstName: profile?.first_name ?? '', lastName: profile?.last_name ?? '', stallName: profile?.stall_name ?? profile?.practice_name ?? '', zip: profile?.zip ?? '' })); auth.getCurrentUserEmail().then((e) => setUserEmail(e ?? null)); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Einstellungen</button>
                     )}
-                    {profile?.role === 'vet' && (
-                      <button type="button" onClick={() => { setVetSubView('settings'); setShowProfileMenu(false); setProfileSaveSuccess(false); setAuthError(null); setVetSettings({ ...vetSettings, practiceName: profile?.practice_name ?? '', zip: profile?.zip ?? '', notifyVaccination: profile?.notify_vaccination ?? true, notifyHoof: profile?.notify_hoof ?? true }); setSettingsPassword(''); auth.getCurrentUserEmail().then((e) => setUserEmail(e ?? null)); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Einstellungen</button>
+                    {view === UserView.VET && canActAsVet && (
+                      <button type="button" onClick={() => { setVetSubView('settings'); setShowProfileMenu(false); setProfileSaveSuccess(false); setAuthError(null); setVetSettings({ ...vetSettings, practiceName: profile?.practice_name ?? '', zip: profile?.practice_zip ?? profile?.zip ?? '', notifyVaccination: profile?.notify_vaccination ?? true, notifyHoof: profile?.notify_hoof ?? true }); setSettingsPassword(''); auth.getCurrentUserEmail().then((e) => setUserEmail(e ?? null)); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700">Einstellungen</button>
                     )}
                     <div className="border-t border-slate-50 mt-2 pt-2">
                       <button type="button" onClick={handleLogout} className="w-full text-left px-5 py-3 text-rose-600 font-bold hover:bg-rose-50 text-sm">Abmelden</button>
@@ -897,7 +996,7 @@ const App: React.FC = () => {
               </button>
             </div>
           </div>
-        ) : authState === 'AUTHENTICATED' ? (profile?.role === 'vet' ? (
+        ) : authState === 'AUTHENTICATED' ? (view === UserView.VET ? (
           vetSubView === 'settings' ? (
             <div className="max-w-4xl mx-auto bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4">
               <div className="bg-slate-900 p-10 text-white flex items-center gap-8">
@@ -945,13 +1044,13 @@ const App: React.FC = () => {
                       }
                       const p = await auth.updateProfile({
                         practice_name: vetSettings.practiceName || null,
-                        zip: vetSettings.zip || null,
+                        practice_zip: vetSettings.zip || null,
                         notify_vaccination: vetSettings.notifyVaccination,
                         notify_hoof: vetSettings.notifyHoof,
                       });
                       setProfile(p);
                       setProfileSaveSuccess(true);
-                      setVetSettings({ ...vetSettings, practiceName: p.practice_name ?? '', zip: p.zip ?? '', notifyVaccination: p.notify_vaccination ?? true, notifyHoof: p.notify_hoof ?? true });
+                      setVetSettings({ ...vetSettings, practiceName: p.practice_name ?? '', zip: p.practice_zip ?? p.zip ?? '', notifyVaccination: p.notify_vaccination ?? true, notifyHoof: p.notify_hoof ?? true });
                       const em = await auth.getCurrentUserEmail();
                       setUserEmail(em ?? null);
                       setTimeout(() => { setVetSubView('dashboard'); setProfileSaveSuccess(false); }, 1200);
@@ -966,10 +1065,10 @@ const App: React.FC = () => {
         ) : renderContent()) : renderAuth()}
       </main>
 
-      {showTerminModal && profile?.role === 'owner' && (
+      {showTerminModal && view === UserView.OWNER && (
         <TerminVereinbarenModal horses={horses} profile={profile} onClose={() => setShowTerminModal(false)} />
       )}
-      {showAddHorseModal && profile?.role === 'owner' && (
+      {showAddHorseModal && view === UserView.OWNER && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={closeAddHorseModal} role="presentation">
           <form onSubmit={handleCreateHorse} className="bg-white rounded-[2.5rem] p-10 max-w-xl w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-6" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center border-b border-slate-100 pb-6">
@@ -985,6 +1084,11 @@ const App: React.FC = () => {
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN) *</label><input required type="text" value={newHorseData.isoNr} onChange={e => setNewHorseData({...newHorseData, isoNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="z.B. DE..." /></div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Reg.-Nr.</label><input type="text" value={newHorseData.feiNr} onChange={e => setNewHorseData({...newHorseData, feiNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="optional" /></div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr *</label><input required type="number" value={newHorseData.birthYear} onChange={e => setNewHorseData({...newHorseData, birthYear: parseInt(e.target.value, 10) || new Date().getFullYear()})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                <div className="col-span-2 pt-4 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rimondo</div>
+                <div className="col-span-2 flex gap-2">
+                  <input type="url" value={rimondoUrl} onChange={e => setRimondoUrl(e.target.value)} placeholder="Rimondo-Profil-URL (z.B. https://www.rimondo.com/de/horse-details/…)" className="flex-1 p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
+                  <button type="button" onClick={async () => { if (!rimondo.isRimondoUrl(rimondoUrl)) return; setRimondoLoading(true); setHorseError(null); try { const d = await rimondo.fetchRimondoData(rimondoUrl); setNewHorseData(prev => ({ ...prev, name: d.name ?? prev.name, breed: d.breed ?? prev.breed, birthYear: d.birthYear ?? prev.birthYear, breedingAssociation: d.breedingAssociation ?? prev.breedingAssociation, gender: d.gender ?? prev.gender })); } catch { setHorseError('Rimondo-Daten konnten nicht geladen werden.'); } finally { setRimondoLoading(false); } }} disabled={rimondoLoading || !rimondo.isRimondoUrl(rimondoUrl)} className="px-4 py-3 bg-violet-600 text-white text-sm font-bold rounded-2xl hover:bg-violet-700 disabled:opacity-50 shrink-0">Von Rimondo übernehmen</button>
+                </div>
                 <div className="col-span-2 pt-4 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Optionale Details</div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zuchtverband</label><input type="text" value={newHorseData.breedingAssociation} onChange={e => setNewHorseData({...newHorseData, breedingAssociation: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="z.B. Oldenburger Verband" /></div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Rasse</label><input type="text" value={newHorseData.breed} onChange={e => setNewHorseData({...newHorseData, breed: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
