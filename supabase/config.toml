@@ -1,0 +1,5 @@
+# Supabase-Projekt-Konfiguration
+
+[functions.rimondo-fetch]
+# Ohne gültigen JWT erreichbar – Rimondo-Import funktioniert auch vor der Anmeldung
+verify_jwt = false
