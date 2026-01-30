@@ -16,13 +16,14 @@ export const VALIDATION_PATTERNS = {
   WEIGHT: (weight: number) => weight >= 50 && weight <= 1500,
 };
 
-const DAYS_V2_MIN = 28;
-const DAYS_V2_MAX = 70;
-/** V2 fällig 14 Tage vor Tag 28 → ab Tag 14; überfällig ab Tag 71. */
-const DAYS_V3_AFTER_V2 = 6 * 30 + 21;
-const DAYS_BOOSTER_AFTER_V3 = 6 * 30 + 21;
-/** V3/Booster überfällig ab 6 Mon + 22 Tage (Tag nach Fälligkeit). */
-const DAYS_OVERDUE_V3_BOOSTER = 6 * 30 + 22;
+/** V2: fällig ab Tag 28, Überziehungsfrist bis Tag 70, kritisch ab Tag 71. Frühere Impfung = konform. */
+const DAYS_V2_DUE = 28;
+const DAYS_V2_GRACE_END = 70;
+const DAYS_V2_OVERDUE = 71;
+/** V3/Booster: fällig ab 6 Monaten, Überziehungsfrist 21 Tage, kritisch ab 6 Mon + 22 Tage. Frühere Impfung = konform. */
+const DAYS_6_MONTHS = 6 * 30;
+const DAYS_V3_BOOSTER_GRACE_END = DAYS_6_MONTHS + 21;
+const DAYS_V3_BOOSTER_OVERDUE = DAYS_6_MONTHS + 22;
 const NOTIFY_DAYS_BEFORE = 14;
 
 export const VACC_TYPES = ['Influenza', 'Herpes', 'Tetanus', 'West-Nil-Virus'] as const;
@@ -67,16 +68,16 @@ export interface VaccComplianceResult {
 /**
  * Impf-Fälligkeit pro Kategorie (type). Zwei Nutzungsweisen:
  *
- * 1. Vollständige Historie: V1→V2→V3→Booster. Fälligkeit aus letzter Impfung, Intervallprüfung
- *    (V1→V2: 28–70 Tage; V2→V3, V3→Booster, Booster→Booster: 6 Mon + 21 Tage).
+ * 1. Vollständige Historie: V1→V2→V3→Booster. Fälligkeit aus letzter Impfung.
  *
- * Status: Konform → Fällig (14 Tage vor nächstem Termin) → Kritisch (überfällig).
- * - V2: Frist 28–70 Tage nach V1. Fällig ab 14 Tage vor Tag 28 (= ab Tag 14), kritisch ab Tag 71.
- * - V3: 6 Mon + 21 Tage nach V2. Fällig 14 Tage vor diesem Termin, kritisch ab 6 Mon + 22 Tage.
- * - Booster: wie V3, Referenz V3.
+ * Regel: Frühere Impfung ist stets konform. Fällig = Termin ab dem geimpft werden soll.
+ * Überziehungsfrist = zusätzliche Tage; danach kritisch.
+ *
+ * - V2: Fällig ab Tag 28, Überziehungsfrist bis Tag 70, kritisch ab Tag 71.
+ * - V3/Booster: Fällig ab 6 Monaten, Überziehungsfrist 21 Tage (bis 6 Mon + 21), kritisch ab 6 Mon + 22.
  *
  * 2. Nur letzte Booster-Impfung: Ein Eintrag pro Typ mit sequence Booster / isBooster. Keine
- *    V1/V2/V3 nötig. Fälligkeit = Booster-Datum + 6 Mon + 21 Tage; gleiche Fällig-/Kritisch-Regeln.
+ *    V1/V2/V3 nötig. Gleiche Fällig-/Kritisch-Regeln ab Booster-Datum.
  *
  * Mitteilungen: Kategorie + Sequenz; fällig: „bis DD.MM.YYYY (X Tage)“; kritisch: „seit DD.MM.YYYY (X Tage überfällig)“.
  */
@@ -122,33 +123,22 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
     let intervalOk = true;
 
     if (onlyBooster) {
-      dueMin = dueMax = DAYS_BOOSTER_AFTER_V3;
+      dueMin = DAYS_6_MONTHS;
+      dueMax = DAYS_V3_BOOSTER_GRACE_END;
       phase = 'Booster';
     } else if (seq === 'V1') {
-      dueMin = DAYS_V2_MIN;
-      dueMax = DAYS_V2_MAX;
+      dueMin = DAYS_V2_DUE;
+      dueMax = DAYS_V2_GRACE_END;
       phase = 'V2';
     } else if (seq === 'V2') {
-      dueMin = dueMax = DAYS_V3_AFTER_V2;
+      dueMin = DAYS_6_MONTHS;
+      dueMax = DAYS_V3_BOOSTER_GRACE_END;
       phase = 'V3';
       if (list.length < 2) intervalOk = false;
-      else {
-        const prev = new Date(list[1].date);
-        prev.setHours(0, 0, 0, 0);
-        const gap = daysBetween(prev, lastDate);
-        if (gap < DAYS_V2_MIN || gap > DAYS_V2_MAX) intervalOk = false;
-      }
     } else {
-      /* V3 oder Booster: Nächste Fälligkeit = 6 Mon + 21 Tage nach letzter Impfung. Mit V3 (ohne Booster-Eintrag) ist das Pferd konform bis zu diesem Termin. */
-      dueMin = dueMax = seq === 'V3' ? DAYS_V3_AFTER_V2 : DAYS_BOOSTER_AFTER_V3;
+      dueMin = DAYS_6_MONTHS;
+      dueMax = DAYS_V3_BOOSTER_GRACE_END;
       phase = 'Booster';
-      if (list.length >= 2) {
-        const prev = new Date(list[1].date);
-        prev.setHours(0, 0, 0, 0);
-        const gap = daysBetween(prev, lastDate);
-        const required = seq === 'V3' ? DAYS_V3_AFTER_V2 : DAYS_BOOSTER_AFTER_V3;
-        if (gap < required) intervalOk = false;
-      }
     }
 
     const dueDateMin = addDays(lastDate, dueMin);
@@ -173,8 +163,8 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
 
     const isOverdue =
       phase === 'V3' || phase === 'Booster'
-        ? d >= DAYS_OVERDUE_V3_BOOSTER
-        : d > dueMax;
+        ? d >= DAYS_V3_BOOSTER_OVERDUE
+        : d >= DAYS_V2_OVERDUE;
     if (isOverdue) {
       const overdue = d - dueMax;
       const dueDate = dueDateMax;
