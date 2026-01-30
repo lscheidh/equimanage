@@ -52,7 +52,7 @@ function getProfileInitials(p: Profile | null): string {
 function mapHorseError(err: unknown, context?: 'create' | 'update' | 'delete'): string {
   const msg = err instanceof Error ? err.message : String(err ?? '');
   const s = msg.toLowerCase();
-  if (s.includes('duplicate') || s.includes('unique') || s.includes('already exists')) return 'Pferd mit dieser ISO- oder Reg.-Nr. existiert bereits.';
+  if (s.includes('duplicate') || s.includes('unique') || s.includes('already exists')) return 'Pferd mit dieser ISO- oder FEI-Nr. existiert bereits.';
   if (s.includes('foreign key') || s.includes('owner')) return 'Besitzer nicht gefunden. Bitte Seite neu laden.';
   if (s.includes('fetch') || s.includes('network')) return 'Netzwerkfehler. Bitte Verbindung prüfen und erneut versuchen.';
   if (msg) return msg;
@@ -126,6 +126,7 @@ const App: React.FC = () => {
   const [horseError, setHorseError] = useState<string | null>(null);
   const [rimondoUrl, setRimondoUrl] = useState('');
   const [rimondoLoading, setRimondoLoading] = useState(false);
+  const [rimondoPreviewData, setRimondoPreviewData] = useState<rimondo.RimondoParsed | null>(null);
 
   const [registrationSuccessMessage, setRegistrationSuccessMessage] = useState<string | null>(null);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
@@ -140,6 +141,7 @@ const App: React.FC = () => {
     setNewHorseImageFile(null);
     setRedeemCode('');
     setRimondoUrl('');
+    setRimondoPreviewData(null);
     setAddMode('manual');
     setHorseError(null);
   };
@@ -548,7 +550,7 @@ const App: React.FC = () => {
         );
       case 'LOGIN':
         return (
-          <div className="max-w-md mx-auto bg-white rounded-[2.5rem] p-10 shadow-xl border border-slate-100 animate-in zoom-in duration-300">
+          <div className="max-w-md mx-auto w-full max-w-[min(100vw-2rem,28rem)] bg-white rounded-2xl sm:rounded-[2.5rem] p-6 sm:p-10 shadow-xl border border-slate-100 animate-in zoom-in duration-300">
             <h2 className="text-3xl font-bold mb-6">Willkommen zurück</h2>
             <form className="space-y-4" onSubmit={async (e) => {
               e.preventDefault();
@@ -607,7 +609,7 @@ const App: React.FC = () => {
         );
       case 'REGISTER_OWNER':
         return (
-          <div className="max-w-2xl mx-auto bg-white rounded-[3rem] p-12 shadow-xl border border-slate-100 animate-in slide-in-from-bottom-8">
+          <div className="max-w-2xl mx-auto bg-white rounded-2xl sm:rounded-[3rem] p-6 sm:p-12 shadow-xl border border-slate-100 animate-in slide-in-from-bottom-8 w-full max-w-[min(100vw-2rem,42rem)]">
             <h2 className="text-3xl font-bold mb-8">Besitzer-Profil erstellen</h2>
             <form className="space-y-5" onSubmit={async (e) => {
               e.preventDefault();
@@ -677,7 +679,7 @@ const App: React.FC = () => {
         );
       case 'REGISTER_VET':
         return (
-          <div className="max-w-2xl mx-auto bg-white rounded-[3rem] p-12 shadow-xl border border-slate-100 animate-in slide-in-from-bottom-8">
+          <div className="max-w-2xl mx-auto bg-white rounded-2xl sm:rounded-[3rem] p-6 sm:p-12 shadow-xl border border-slate-100 animate-in slide-in-from-bottom-8 w-full max-w-[min(100vw-2rem,42rem)]">
             <h2 className="text-3xl font-bold mb-8">Tierarzt-Profil erstellen</h2>
             <form className="space-y-5" onSubmit={async (e) => {
               e.preventDefault();
@@ -712,7 +714,7 @@ const App: React.FC = () => {
         );
       case 'REGISTER_BOTH': {
         return (
-          <div className="max-w-2xl mx-auto bg-white rounded-[3rem] p-12 shadow-xl border border-slate-100 animate-in slide-in-from-bottom-8">
+          <div className="max-w-2xl mx-auto bg-white rounded-2xl sm:rounded-[3rem] p-6 sm:p-12 shadow-xl border border-slate-100 animate-in slide-in-from-bottom-8 w-full max-w-[min(100vw-2rem,42rem)]">
             <h2 className="text-3xl font-bold mb-2">Besitzer + Tierarzt</h2>
             <p className="text-slate-500 text-sm mb-8">Ein Account – du kannst zwischen den Profilen wechseln.</p>
             <form className="space-y-5" onSubmit={async (e) => {
@@ -815,7 +817,7 @@ const App: React.FC = () => {
 
     if (ownerSubView === 'settings') {
       return (
-        <div className="max-w-4xl mx-auto bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+        <div className="max-w-4xl mx-auto w-full max-w-[min(100vw-1rem,56rem)] bg-white rounded-2xl sm:rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4">
           <div className="bg-slate-900 p-10 text-white flex items-center gap-8">
             <div className="w-28 h-28 bg-slate-800 rounded-full flex items-center justify-center text-4xl font-black border-4 border-slate-700 shadow-xl">{getProfileInitials(profile)}</div>
             <div>
@@ -998,7 +1000,7 @@ const App: React.FC = () => {
           </div>
         ) : authState === 'AUTHENTICATED' ? (view === UserView.VET ? (
           vetSubView === 'settings' ? (
-            <div className="max-w-4xl mx-auto bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+            <div className="max-w-4xl mx-auto w-full max-w-[min(100vw-1rem,56rem)] bg-white rounded-2xl sm:rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4">
               <div className="bg-slate-900 p-10 text-white flex items-center gap-8">
                 <div className="w-28 h-28 bg-slate-800 rounded-full flex items-center justify-center text-4xl font-black border-4 border-slate-700 shadow-xl">{getProfileInitials(profile)}</div>
                 <div>
@@ -1069,8 +1071,30 @@ const App: React.FC = () => {
         <TerminVereinbarenModal horses={horses} profile={profile} onClose={() => setShowTerminModal(false)} />
       )}
       {showAddHorseModal && view === UserView.OWNER && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={closeAddHorseModal} role="presentation">
-          <form onSubmit={handleCreateHorse} className="bg-white rounded-[2.5rem] p-10 max-w-xl w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-6" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto" onClick={closeAddHorseModal} role="presentation">
+          {/* Rimondo-Bestätigung */}
+          {rimondoPreviewData && (
+            <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/60" onClick={e => e.stopPropagation()}>
+              <div className="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-[min(100vw-2rem,28rem)] shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <h4 className="text-lg font-bold text-slate-900">Rimondo-Daten übernehmen?</h4>
+                <p className="text-sm text-slate-600">Folgende Daten wurden von Rimondo geladen. Sollen sie in das Formular übernommen werden?</p>
+                <dl className="space-y-1 text-sm bg-slate-50 rounded-xl p-4">
+                  {rimondoPreviewData.name != null && <div className="flex justify-between gap-4"><dt className="text-slate-500">Name</dt><dd className="font-medium truncate">{rimondoPreviewData.name}</dd></div>}
+                  {rimondoPreviewData.isoNr != null && <div className="flex justify-between gap-4"><dt className="text-slate-500">ISO-Nr.</dt><dd className="font-medium truncate">{rimondoPreviewData.isoNr}</dd></div>}
+                  {rimondoPreviewData.breed != null && <div className="flex justify-between gap-4"><dt className="text-slate-500">Rasse</dt><dd className="font-medium truncate">{rimondoPreviewData.breed}</dd></div>}
+                  {rimondoPreviewData.birthYear != null && <div className="flex justify-between gap-4"><dt className="text-slate-500">Geburtsjahr</dt><dd className="font-medium">{rimondoPreviewData.birthYear}</dd></div>}
+                  {rimondoPreviewData.gender != null && <div className="flex justify-between gap-4"><dt className="text-slate-500">Geschlecht</dt><dd className="font-medium">{rimondoPreviewData.gender}</dd></div>}
+                  {rimondoPreviewData.breedingAssociation != null && <div className="flex justify-between gap-4"><dt className="text-slate-500">Zuchtverband</dt><dd className="font-medium truncate">{rimondoPreviewData.breedingAssociation}</dd></div>}
+                  {rimondoPreviewData.feiNr != null && <div className="flex justify-between gap-4"><dt className="text-slate-500">FEI-Nr.</dt><dd className="font-medium">{rimondoPreviewData.feiNr}</dd></div>}
+                </dl>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setRimondoPreviewData(null)} className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200">Abbrechen</button>
+                  <button type="button" onClick={() => { const d = rimondoPreviewData; setNewHorseData(prev => ({ ...prev, name: d.name ?? prev.name, isoNr: d.isoNr ?? prev.isoNr, feiNr: d.feiNr ?? prev.feiNr, breed: d.breed ?? prev.breed, birthYear: d.birthYear ?? prev.birthYear, breedingAssociation: d.breedingAssociation ?? prev.breedingAssociation, gender: d.gender ?? prev.gender })); setRimondoPreviewData(null); }} className="flex-1 py-3 bg-violet-600 text-white font-bold rounded-xl hover:bg-violet-700">Übernehmen</button>
+                </div>
+              </div>
+            </div>
+          )}
+          <form onSubmit={handleCreateHorse} className="bg-white rounded-2xl sm:rounded-[2.5rem] p-5 sm:p-10 w-full max-w-[min(100vw-2rem,36rem)] shadow-2xl animate-in zoom-in-95 duration-200 space-y-5 sm:space-y-6 my-4 sm:my-auto" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center border-b border-slate-100 pb-6">
               <h4 className="text-2xl font-black tracking-tight">Neues Pferd</h4>
               <div className="flex bg-slate-100 p-1.5 rounded-2xl">
@@ -1079,15 +1103,15 @@ const App: React.FC = () => {
               </div>
             </div>
             {addMode === 'manual' ? (
-              <div className="grid grid-cols-2 gap-5 max-h-[50vh] overflow-y-auto pr-3 custom-scrollbar">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 max-h-[60vh] sm:max-h-[50vh] overflow-y-auto pr-2 sm:pr-3 custom-scrollbar">
                 <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename *</label><input required type="text" value={newHorseData.name} onChange={e => setNewHorseData({...newHorseData, name: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Name" /></div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN) *</label><input required type="text" value={newHorseData.isoNr} onChange={e => setNewHorseData({...newHorseData, isoNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="z.B. DE..." /></div>
-                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Reg.-Nr.</label><input type="text" value={newHorseData.feiNr} onChange={e => setNewHorseData({...newHorseData, feiNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="optional" /></div>
+                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FEI-Nr.</label><input type="text" value={newHorseData.feiNr} onChange={e => setNewHorseData({...newHorseData, feiNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="optional" /></div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr *</label><input required type="number" value={newHorseData.birthYear} onChange={e => setNewHorseData({...newHorseData, birthYear: parseInt(e.target.value, 10) || new Date().getFullYear()})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
                 <div className="col-span-2 pt-4 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rimondo</div>
-                <div className="col-span-2 flex gap-2">
-                  <input type="url" value={rimondoUrl} onChange={e => setRimondoUrl(e.target.value)} placeholder="Rimondo-Profil-URL (z.B. https://www.rimondo.com/de/horse-details/…)" className="flex-1 p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-                  <button type="button" onClick={async () => { if (!rimondo.isRimondoUrl(rimondoUrl)) return; setRimondoLoading(true); setHorseError(null); try { const d = await rimondo.fetchRimondoData(rimondoUrl); setNewHorseData(prev => ({ ...prev, name: d.name ?? prev.name, breed: d.breed ?? prev.breed, birthYear: d.birthYear ?? prev.birthYear, breedingAssociation: d.breedingAssociation ?? prev.breedingAssociation, gender: d.gender ?? prev.gender })); } catch { setHorseError('Rimondo-Daten konnten nicht geladen werden.'); } finally { setRimondoLoading(false); } }} disabled={rimondoLoading || !rimondo.isRimondoUrl(rimondoUrl)} className="px-4 py-3 bg-violet-600 text-white text-sm font-bold rounded-2xl hover:bg-violet-700 disabled:opacity-50 shrink-0">Von Rimondo übernehmen</button>
+                <div className="col-span-2 flex flex-col sm:flex-row gap-2">
+                  <input type="url" value={rimondoUrl} onChange={e => setRimondoUrl(e.target.value)} placeholder="Rimondo-Profil-URL" className="flex-1 min-w-0 p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
+                  <button type="button" onClick={async () => { if (!rimondo.isRimondoUrl(rimondoUrl)) return; setRimondoLoading(true); setHorseError(null); setRimondoPreviewData(null); try { const d = await rimondo.fetchRimondoData(rimondoUrl); const hasData = d.name || d.breed || d.birthYear || d.gender || d.breedingAssociation || d.isoNr || d.feiNr; if (hasData) setRimondoPreviewData(d); else setHorseError('Keine Pferdedaten auf der Rimondo-Seite gefunden.'); } catch { setHorseError('Rimondo-Daten konnten nicht geladen werden.'); } finally { setRimondoLoading(false); } }} disabled={rimondoLoading || !rimondo.isRimondoUrl(rimondoUrl)} className="px-4 py-3 bg-violet-600 text-white text-sm font-bold rounded-2xl hover:bg-violet-700 disabled:opacity-50 shrink-0">Von Rimondo laden</button>
                 </div>
                 <div className="col-span-2 pt-4 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Optionale Details</div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zuchtverband</label><input type="text" value={newHorseData.breedingAssociation} onChange={e => setNewHorseData({...newHorseData, breedingAssociation: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="z.B. Oldenburger Verband" /></div>

@@ -5,7 +5,7 @@ import type { Vaccination } from './types';
 /**
  * Validierungskonstanten:
  * ISO-Nr (UELN): 2-stelliger Ländercode (ISO 3166) + 13-stellige ID.
- * Reg.-Nr.: Optional, z.B. 8 Ziffern.
+ * FEI-Nr.: Optional, z.B. 8 Ziffern.
  * Chip-ID: 15-stelliger numerischer Code (ISO 11784/11785).
  */
 export const VALIDATION_PATTERNS = {
