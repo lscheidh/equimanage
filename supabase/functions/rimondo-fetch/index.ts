@@ -79,13 +79,23 @@ function parseBaseDataTable(html: string): Record<string, string> {
   return out;
 }
 
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#39;/g, "'");
+}
+
 /** JSON-LD aus <script type="application/ld+json"> parsen (FAQPage, Thing). */
 function parseJsonLd(html: string): Partial<Result> {
   const out: Partial<Result> = {};
   const ldMatch = html.match(/<script\s+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
   if (!ldMatch?.[1]) return out;
   try {
-    const ld = JSON.parse(ldMatch[1]) as Record<string, unknown>;
+    const raw = decodeHtmlEntities(ldMatch[1]);
+    const ld = JSON.parse(raw) as Record<string, unknown>;
     const mainEntity = ld.mainEntity as Array<{ name?: string; acceptedAnswer?: { text?: string } }> | undefined;
     if (Array.isArray(mainEntity)) {
       for (const q of mainEntity) {
@@ -170,6 +180,10 @@ function parseHtml(html: string): Result {
     }
   }
   if (!out.name) {
+    const initName = /init-horse-name=["']([^"']+)["']/i.exec(html);
+    if (initName?.[1]) out.name = initName[1].trim();
+  }
+  if (!out.name) {
     const title = /<title>([^<]+)<\/title>/i.exec(html);
     if (title?.[1]) {
       const t = title[1].replace(/\s*\|\s*rimondo.*$/i, '').replace(/\s*:\s*Springpferd.*$/i, '').trim();
@@ -210,32 +224,45 @@ Deno.serve(async (req) => {
       'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
     };
 
+    const looksBlocked = (h: string) =>
+      !h || h.length < 3000 ||
+      /challenge|cloudflare|cf-browser-verification|please enable javascript|access denied/i.test(h) ||
+      !/base_data|Stammdaten|horse-details|l-topic/i.test(h);
+
+    const fetchViaProxy = async (proxyBase: string): Promise<string> => {
+      const proxyUrl = proxyBase + encodeURIComponent(url);
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 15000);
+      try {
+        const r = await fetch(proxyUrl, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (r.ok) return await r.text();
+      } catch {
+        clearTimeout(t);
+      }
+      return '';
+    };
+
     let html = '';
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
-    try {
-      const res = await fetch(url, { headers, redirect: 'follow', signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (res.ok) html = await res.text();
-    } catch (e) {
-      clearTimeout(timeoutId);
+    const proxies = [
+      'https://api.allorigins.win/raw?url=',
+      'https://corsproxy.io/?url=',
+    ];
+
+    for (const proxy of proxies) {
+      html = await fetchViaProxy(proxy);
+      if (html && !looksBlocked(html)) break;
     }
 
-    const looksBlocked = (h: string) =>
-      h.length < 5000 ||
-      /challenge|cloudflare|cf-browser-verification|please enable javascript/i.test(h) ||
-      !/base_data|Stammdaten|horse-details/i.test(h);
-
     if (!html || looksBlocked(html)) {
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-      const proxyController = new AbortController();
-      const proxyTimeout = setTimeout(() => proxyController.abort(), 15000);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
       try {
-        const proxyRes = await fetch(proxyUrl, { signal: proxyController.signal });
-        clearTimeout(proxyTimeout);
-        if (proxyRes.ok) html = await proxyRes.text();
+        const res = await fetch(url, { headers, redirect: 'follow', signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res.ok) html = await res.text();
       } catch {
-        clearTimeout(proxyTimeout);
+        clearTimeout(timeoutId);
       }
     }
 

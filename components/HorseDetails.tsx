@@ -48,6 +48,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
   const [rimondoUrl, setRimondoUrl] = useState('');
   const [rimondoLoading, setRimondoLoading] = useState(false);
   const [rimondoPreviewData, setRimondoPreviewData] = useState<rimondo.RimondoParsed | null>(null);
+  const [rimondoError, setRimondoError] = useState<string | null>(null);
   useEffect(() => { if (!showEditHorseMask) setEditedHorse(horse); }, [horse, showEditHorseMask]);
 
   const [entryData, setEntryData] = useState({
@@ -481,9 +482,12 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               </div>
               <div className="col-span-2 pt-2 border-t border-slate-100">
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Rimondo</div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input type="url" value={rimondoUrl} onChange={e => setRimondoUrl(e.target.value)} placeholder="Rimondo-Profil-URL" className="flex-1 min-w-0 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-                  <button type="button" onClick={async () => { if (!rimondo.isRimondoUrl(rimondoUrl)) return; setRimondoLoading(true); setRimondoPreviewData(null); try { const d = await rimondo.fetchRimondoData(rimondoUrl); const hasData = d.name || d.breed || d.birthYear || d.gender || d.breedingAssociation || d.isoNr || d.feiNr; if (hasData) setRimondoPreviewData(d); } finally { setRimondoLoading(false); } }} disabled={rimondoLoading || !rimondo.isRimondoUrl(rimondoUrl)} className="px-4 py-3 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 disabled:opacity-50 shrink-0">Von Rimondo laden</button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input type="url" value={rimondoUrl} onChange={e => { setRimondoUrl(e.target.value); setRimondoError(null); }} placeholder="Rimondo-Profil-URL" className="flex-1 min-w-0 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
+                    <button type="button" onClick={async () => { if (!rimondo.isRimondoUrl(rimondoUrl)) return; setRimondoLoading(true); setRimondoPreviewData(null); setRimondoError(null); try { const d = await rimondo.fetchRimondoData(rimondoUrl); const hasData = d.name || d.breed || d.birthYear || d.gender || d.breedingAssociation || d.isoNr || d.feiNr; if (hasData) setRimondoPreviewData(d); else setRimondoError('Keine Pferdedaten auf der Rimondo-Seite gefunden.'); } catch { setRimondoError('Rimondo-Daten konnten nicht geladen werden.'); } finally { setRimondoLoading(false); } }} disabled={rimondoLoading || !rimondo.isRimondoUrl(rimondoUrl)} className="px-4 py-3 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 disabled:opacity-50 shrink-0">{rimondoLoading ? 'Laden…' : 'Von Rimondo laden'}</button>
+                  </div>
+                  {rimondoError && <p className="text-sm text-rose-600">{rimondoError}</p>}
                 </div>
               </div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr</label><input type="number" value={editedHorse.birthYear} onChange={e => setEditedHorse({...editedHorse, birthYear: parseInt(e.target.value, 10) || new Date().getFullYear()})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
