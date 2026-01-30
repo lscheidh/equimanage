@@ -25,3 +25,6 @@ dist-ssr
 
 # Supabase CLI local cache
 supabase/.temp/
+
+# Debug/temp
+rimondo-page.html

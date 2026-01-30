@@ -36,14 +36,18 @@ function parseBaseDataTable(html: string): Record<string, string> {
   const fullBlock = html.length < 200000 ? html : html.slice(0, 100000);
 
   const addPair = (label: string, value: string) => {
-    const k = label.replace(/:$/, '').trim().toLowerCase().replace(/\s+/g, ' ');
-    if (k && value.trim()) out[k] = value.trim();
+    const raw = label.replace(/:$/, '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const val = value.trim();
+    if (!raw || !val) return;
+    out[raw] = val;
+    const base = raw.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    if (base && base !== raw && !out[base]) out[base] = val;
   };
 
   const searchBlocks = [block, fullBlock];
   for (const blk of searchBlocks) {
-    if (Object.keys(out).length > 3) break;
-    // 1) Tabelle: <tr> mit <td> oder <th>
+    if (Object.keys(out).length > 5) break;
+    // 1) Tabelle: <tr> mit th/td – Rimondo: 4 Zellen/Zeile (Label1,Wert1,Label2,Wert2)
     const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
     let trMatch;
     while ((trMatch = trRegex.exec(blk)) !== null) {
@@ -51,6 +55,7 @@ function parseBaseDataTable(html: string): Record<string, string> {
       const cells = rowHtml.match(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi);
       if (!cells || cells.length < 2) continue;
       addPair(stripHtml(cells[0]), stripHtml(cells[1]));
+      if (cells.length >= 4) addPair(stripHtml(cells[2]), stripHtml(cells[3]));
     }
     // 2) Definition list: <dt>Label</dt><dd>Wert</dd>
     const dtRegex = /<dt[^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/gi;
@@ -74,18 +79,40 @@ function parseBaseDataTable(html: string): Record<string, string> {
   return out;
 }
 
-/** JSON-LD aus <script type="application/ld+json"> parsen (z. B. Thing/Product). */
+/** JSON-LD aus <script type="application/ld+json"> parsen (FAQPage, Thing). */
 function parseJsonLd(html: string): Partial<Result> {
   const out: Partial<Result> = {};
   const ldMatch = html.match(/<script\s+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
   if (!ldMatch?.[1]) return out;
   try {
     const ld = JSON.parse(ldMatch[1]) as Record<string, unknown>;
-    const graph = ld['@graph'] as Record<string, unknown>[] | undefined;
-    const obj = Array.isArray(graph)
-      ? graph.find((x: Record<string, unknown>) => x.name || x['@type'])
-      : ld;
-    if (obj && typeof obj.name === 'string') out.name = obj.name;
+    const mainEntity = ld.mainEntity as Array<{ name?: string; acceptedAnswer?: { text?: string } }> | undefined;
+    if (Array.isArray(mainEntity)) {
+      for (const q of mainEntity) {
+        const text = q.acceptedAnswer?.text || '';
+        if (text.includes('Rasse') && text.includes('hat die Rasse')) {
+          const m = text.match(/hat die Rasse\s+([^.]+)/i);
+          if (m) out.breed = m[1].trim().slice(0, 80);
+        } else if (text.includes('Geschlecht') && (text.includes('Stute') || text.includes('Hengst') || text.includes('Wallach'))) {
+          if (text.includes('Stute')) out.gender = 'Stute';
+          else if (text.includes('Hengst')) out.gender = 'Hengst';
+          else if (text.includes('Wallach')) out.gender = 'Wallach';
+        } else if (text.includes('geboren') && text.match(/\d{4}/)) {
+          const m = text.match(/\d{4}/);
+          if (m) {
+            const y = parseInt(m[0], 10);
+            if (y >= 1990 && y <= new Date().getFullYear()) out.birthYear = y;
+          }
+        }
+      }
+    }
+    if (!out.name) {
+      const graph = ld['@graph'] as Record<string, unknown>[] | undefined;
+      const obj = Array.isArray(graph)
+        ? graph.find((x: Record<string, unknown>) => x.name || x['@type'])
+        : ld as Record<string, unknown>;
+      if (obj && typeof obj.name === 'string') out.name = obj.name;
+    }
   } catch {
     // ignore
   }
@@ -126,25 +153,33 @@ function parseHtml(html: string): Result {
   }
   out.breedingAssociation = get(['zuchtverband', 'verband', 'breeding association'])?.slice(0, 120);
 
+  if (!out.name && jsonLd.name) out.name = jsonLd.name;
+  if (!out.breed && jsonLd.breed) out.breed = jsonLd.breed;
+  if (!out.gender && jsonLd.gender) out.gender = jsonLd.gender;
+  if (!out.birthYear && jsonLd.birthYear) out.birthYear = jsonLd.birthYear;
+
   // Fallback: og:title für Name
   if (!out.name) {
     const ogTitle = /<meta\s+property="og:title"\s+content="([^"]+)"/i.exec(html);
     if (ogTitle?.[1]) {
       const t = ogTitle[1].trim();
-      if (t && !t.toLowerCase().startsWith('rimondo')) out.name = t;
+      if (t && !t.toLowerCase().startsWith('rimondo')) {
+        const beforeComma = t.split(',')[0].trim();
+        out.name = beforeComma.replace(/(Stute|Hengst|Wallach)$/i, '').trim() || beforeComma;
+      }
     }
   }
   if (!out.name) {
     const title = /<title>([^<]+)<\/title>/i.exec(html);
     if (title?.[1]) {
-      const t = title[1].replace(/\s*\|\s*rimondo.*$/i, '').trim();
+      const t = title[1].replace(/\s*\|\s*rimondo.*$/i, '').replace(/\s*:\s*Springpferd.*$/i, '').trim();
       if (t) out.name = t;
     }
   }
-  if (!out.name && jsonLd.name) out.name = jsonLd.name;
 
   return out;
 }
+
 
 /** Name aus URL-Slug extrahieren: /horse-details/1754189/daydream-z -> Daydream Z */
 function nameFromUrl(url: string): string | undefined {
