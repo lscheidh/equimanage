@@ -204,22 +204,49 @@ Deno.serve(async (req) => {
       });
     }
 
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
-      },
-      redirect: 'follow',
-    });
-    if (!res.ok) {
-      console.warn('rimondo-fetch: fetch failed', res.status, url);
-      return new Response(JSON.stringify({}), {
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml',
+      'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
+    };
+
+    let html = '';
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    try {
+      const res = await fetch(url, { headers, redirect: 'follow', signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (res.ok) html = await res.text();
+    } catch (e) {
+      clearTimeout(timeoutId);
+    }
+
+    const looksBlocked = (h: string) =>
+      h.length < 5000 ||
+      /challenge|cloudflare|cf-browser-verification|please enable javascript/i.test(h) ||
+      !/base_data|Stammdaten|horse-details/i.test(h);
+
+    if (!html || looksBlocked(html)) {
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+      const proxyController = new AbortController();
+      const proxyTimeout = setTimeout(() => proxyController.abort(), 15000);
+      try {
+        const proxyRes = await fetch(proxyUrl, { signal: proxyController.signal });
+        clearTimeout(proxyTimeout);
+        if (proxyRes.ok) html = await proxyRes.text();
+      } catch {
+        clearTimeout(proxyTimeout);
+      }
+    }
+
+    if (!html || looksBlocked(html)) {
+      console.warn('rimondo-fetch: could not fetch valid HTML', url);
+      const urlName = nameFromUrl(url);
+      return new Response(JSON.stringify(urlName ? { name: urlName } : {}), {
         headers: { 'Content-Type': 'application/json', ...cors },
         status: 200,
       });
     }
-    const html = await res.text();
     const result = parseHtml(html);
     if (!result.name) {
       const urlName = nameFromUrl(url);

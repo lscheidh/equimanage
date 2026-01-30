@@ -34,18 +34,24 @@ function getFallbackFromUrl(url: string): RimondoParsed {
   return out;
 }
 
+const RIMONDO_FETCH_TIMEOUT_MS = 18000;
+
 /**
  * Ruft Edge Function rimondo-fetch auf und liefert geparste Pferdedaten.
- * Fallback: Name aus URL-Slug, wenn Edge Function fehlschlägt.
+ * Fallback: Name aus URL-Slug, wenn Edge Function fehlschlägt oder nicht deployed ist.
  */
 export async function fetchRimondoData(url: string): Promise<RimondoParsed> {
   const u = (url || '').trim();
   if (!u || !isRimondoUrl(u)) return {};
   const fallback = getFallbackFromUrl(u);
   try {
-    const { data, error } = await supabase.functions.invoke<RimondoParsed>('rimondo-fetch', {
+    const invokePromise = supabase.functions.invoke<RimondoParsed>('rimondo-fetch', {
       body: { url: u },
     });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('TIMEOUT')), RIMONDO_FETCH_TIMEOUT_MS)
+    );
+    const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
     if (error) return fallback;
     const result = (data && typeof data === 'object') ? data : {};
     if (!result.name) result.name = fallback.name;
