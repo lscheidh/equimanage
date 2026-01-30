@@ -480,7 +480,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                   </label>
                 </div>
               </div>
-              <div className="col-span-2 pt-2 border-t border-slate-100">
+              <div className="col-span-2 pt-2 border-t border-slate-100 hidden">
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Rimondo</div>
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-col sm:flex-row gap-2">
