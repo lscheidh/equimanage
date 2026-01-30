@@ -150,7 +150,7 @@ export const HealthDashboard: React.FC<HealthDashboardProps> = ({
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600 max-w-xs">
                       {compliance.status === ComplianceStatus.GREEN && compliance.nextDueInfo ? (
-                        <span className="break-words">{compliance.nextDueInfo.sequence} {compliance.nextDueInfo.type} am {compliance.nextDueInfo.dueDate}</span>
+                        <span className="break-words">{compliance.nextDueInfo.sequence} {compliance.nextDueInfo.type}: Ab {compliance.nextDueInfo.dueDate} fällig, spätestens bis {compliance.nextDueInfo.graceEndDate}</span>
                       ) : compliance.dueItems.length > 0 ? (
                         <ul className="space-y-0.5">
                           {compliance.dueItems.map((di, j) => (

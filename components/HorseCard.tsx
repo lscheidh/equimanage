@@ -42,7 +42,7 @@ export const HorseCard: React.FC<HorseCardProps> = ({ horse, onClick }) => {
           {compliance.status === ComplianceStatus.GREEN && compliance.nextDueInfo ? (
             <div className="flex items-start gap-2 text-[10px] text-slate-600">
               <div className={`w-2 h-2 rounded-full ${colorClass} animate-pulse shrink-0 mt-0.5`} />
-              <span className="font-semibold uppercase tracking-tighter break-words">{compliance.nextDueInfo.sequence} {compliance.nextDueInfo.type} am {compliance.nextDueInfo.dueDate}</span>
+              <span className="font-semibold uppercase tracking-tighter break-words">{compliance.nextDueInfo.sequence} {compliance.nextDueInfo.type}: Ab {compliance.nextDueInfo.dueDate} fällig, spätestens bis {compliance.nextDueInfo.graceEndDate}</span>
             </div>
           ) : compliance.dueItems.length > 0 ? (
             <ul className="space-y-0.5">

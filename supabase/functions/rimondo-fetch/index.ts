@@ -28,44 +28,66 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-/** Parst #base_data Tabelle oder dl/dt/dd (Zeilen mit Label + Wert). */
+/** Parst #base_data Tabelle, dl/dt/dd oder Fließtext. Sucht in base_data oder gesamter Seite. */
 function parseBaseDataTable(html: string): Record<string, string> {
   const out: Record<string, string> = {};
-  const baseDataStart = html.search(/id=["']base_data["']|id=["']base-data["']/i);
-  const block = baseDataStart >= 0 ? html.slice(baseDataStart, baseDataStart + 12000) : html;
+  const baseDataStart = html.search(/id=["']base_data["']|id=["']base-data["']|class=["'][^"']*base[_-]?data[^"']*["']/i);
+  const block = baseDataStart >= 0 ? html.slice(baseDataStart, baseDataStart + 15000) : html;
+  const fullBlock = html.length < 200000 ? html : html.slice(0, 100000);
 
   const addPair = (label: string, value: string) => {
-    const k = label.replace(/:$/, '').trim().toLowerCase();
+    const k = label.replace(/:$/, '').trim().toLowerCase().replace(/\s+/g, ' ');
     if (k && value.trim()) out[k] = value.trim();
   };
 
-  // 1) Tabelle: <tr> mit <td> oder <th>
-  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let trMatch;
-  while ((trMatch = trRegex.exec(block)) !== null) {
-    const rowHtml = trMatch[1];
-    const cells = rowHtml.match(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi);
-    if (!cells || cells.length < 2) continue;
-    addPair(stripHtml(cells[0]), stripHtml(cells[1]));
-  }
-
-  // 2) Definition list: <dt>Label</dt><dd>Wert</dd>
-  if (Object.keys(out).length === 0) {
+  const searchBlocks = [block, fullBlock];
+  for (const blk of searchBlocks) {
+    if (Object.keys(out).length > 3) break;
+    // 1) Tabelle: <tr> mit <td> oder <th>
+    const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    let trMatch;
+    while ((trMatch = trRegex.exec(blk)) !== null) {
+      const rowHtml = trMatch[1];
+      const cells = rowHtml.match(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi);
+      if (!cells || cells.length < 2) continue;
+      addPair(stripHtml(cells[0]), stripHtml(cells[1]));
+    }
+    // 2) Definition list: <dt>Label</dt><dd>Wert</dd>
     const dtRegex = /<dt[^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/gi;
     let ddMatch;
-    while ((ddMatch = dtRegex.exec(block)) !== null) {
+    while ((ddMatch = dtRegex.exec(blk)) !== null) {
       addPair(stripHtml(ddMatch[1]), stripHtml(ddMatch[2]));
     }
   }
 
-  // 3) Label: Wert Muster im Fließtext (Fallback)
-  if (Object.keys(out).length === 0) {
-    const labels = ['Name', 'Lebensnummer', 'FEI ID', 'Geboren', 'Rasse', 'Geschlecht', 'Zuchtverband'];
-    for (const lbl of labels) {
-      const re = new RegExp(lbl + '\\s*[:\\s]*([^<\n]{1,80})', 'i');
-      const m = re.exec(block);
-      if (m) addPair(lbl, m[1]);
-    }
+  // 3) Label: Wert Muster im Fließtext (DE + EN)
+  const labels = [
+    'Name', 'Sportname', 'Lebensnummer', 'FEI ID', 'FEI-Nr', 'Geboren', 'Born', 'Rasse', 'Breed',
+    'Geschlecht', 'Gender', 'Zuchtverband', 'National-ID', 'UELN', 'Passnummer', 'Foaled',
+  ];
+  for (const lbl of labels) {
+    if (out[lbl.toLowerCase().replace(/\s+/g, ' ')]) continue;
+    const re = new RegExp(lbl + '\\s*[:\\s]*([^<\n]{1,100})', 'gi');
+    const m = re.exec(fullBlock);
+    if (m) addPair(lbl, m[1]);
+  }
+  return out;
+}
+
+/** JSON-LD aus <script type="application/ld+json"> parsen (z. B. Thing/Product). */
+function parseJsonLd(html: string): Partial<Result> {
+  const out: Partial<Result> = {};
+  const ldMatch = html.match(/<script\s+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (!ldMatch?.[1]) return out;
+  try {
+    const ld = JSON.parse(ldMatch[1]) as Record<string, unknown>;
+    const graph = ld['@graph'] as Record<string, unknown>[] | undefined;
+    const obj = Array.isArray(graph)
+      ? graph.find((x: Record<string, unknown>) => x.name || x['@type'])
+      : ld;
+    if (obj && typeof obj.name === 'string') out.name = obj.name;
+  } catch {
+    // ignore
   }
   return out;
 }
@@ -73,6 +95,7 @@ function parseBaseDataTable(html: string): Record<string, string> {
 function parseHtml(html: string): Result {
   const out: Result = {};
   const table = parseBaseDataTable(html);
+  const jsonLd = parseJsonLd(html);
 
   const get = (keys: string[]): string | undefined => {
     for (const k of keys) {
@@ -82,12 +105,11 @@ function parseHtml(html: string): Result {
     return undefined;
   };
 
-  // Rimondo #base_data Zuordnung (Labels werden toLowerCase):
-  // Pferdename=Name, ISO-Nr.=Lebensnummer, FEI-Nr.=FEI ID, Geburtsjahr=Geboren, Rasse=Rasse
-  out.name = get(['name', 'pferdename']);
-  out.isoNr = get(['lebensnummer', 'ueln', 'iso', 'passnummer'])?.slice(0, 30);
+  // Rimondo Zuordnung (Labels toLowerCase)
+  out.name = get(['name', 'sportname', 'pferdename']);
+  out.isoNr = get(['lebensnummer', 'ueln', 'iso', 'passnummer', 'national-id', 'national id'])?.slice(0, 30);
   out.feiNr = get(['fei id', 'fei-id', 'fei', 'fei-nr', 'fei nr'])?.slice(0, 30);
-  const birthStr = get(['geboren', 'geburtsjahr', 'geb.', 'birth year', 'foaled']);
+  const birthStr = get(['geboren', 'geburtsjahr', 'geb.', 'birth year', 'foaled', 'born']);
   if (birthStr) {
     const m = birthStr.match(/\d{4}/);
     if (m) {
@@ -119,8 +141,18 @@ function parseHtml(html: string): Result {
       if (t) out.name = t;
     }
   }
+  if (!out.name && jsonLd.name) out.name = jsonLd.name;
 
   return out;
+}
+
+/** Name aus URL-Slug extrahieren: /horse-details/1754189/daydream-z -> Daydream Z */
+function nameFromUrl(url: string): string | undefined {
+  const m = /horse-details\/\d+\/([a-z0-9_-]+)(?:\/|$)/i.exec(url);
+  if (!m?.[1]) return undefined;
+  return m[1]
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
 }
 
 Deno.serve(async (req) => {
@@ -151,6 +183,10 @@ Deno.serve(async (req) => {
     const result = parseHtml(html);
     const feiFromUrl = /horse-details\/(\d+)(?:\/|$)/i.exec(url);
     if (feiFromUrl?.[1] && !result.feiNr) result.feiNr = feiFromUrl[1];
+    if (!result.name) {
+      const urlName = nameFromUrl(url);
+      if (urlName) result.name = urlName;
+    }
     return new Response(JSON.stringify(result), {
       headers: { 'Content-Type': 'application/json', ...cors },
       status: 200,
