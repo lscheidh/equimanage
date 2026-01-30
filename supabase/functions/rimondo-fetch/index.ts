@@ -1,4 +1,5 @@
 // Rimondo-Profil-URL abrufen und relevante Pferdefelder extrahieren.
+// Rimondo-Seiten haben <div id="base_data" class="l-topic"> mit einer Tabelle.
 // Deployment: supabase functions deploy rimondo-fetch
 
 const cors = {
@@ -6,25 +7,91 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const RIMONDO_ORIGIN = 'https://www.rimondo.com';
-
 interface Result {
   name?: string;
   breed?: string;
   birthYear?: number;
   gender?: 'Hengst' | 'Stute' | 'Wallach' | null;
   breedingAssociation?: string;
+  isoNr?: string;
+  feiNr?: string;
 }
 
-function parseHtml(html: string, url: string): Result {
-  const out: Result = {};
-  const lower = html.toLowerCase();
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
-  // Rimondo-URL: /horse-details/ID/name-slug – Name oft im Titel oder og:title
-  const ogTitle = /<meta\s+property="og:title"\s+content="([^"]+)"/i.exec(html);
-  if (ogTitle?.[1]) {
-    const t = ogTitle[1].trim();
-    if (t && !t.startsWith('rimondo')) out.name = t;
+/** Parst #base_data Tabelle (Zeilen mit Label + Wert). */
+function parseBaseDataTable(html: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const baseDataStart = html.indexOf('id="base_data"');
+  if (baseDataStart === -1) return out;
+  const afterBase = html.slice(baseDataStart);
+  const tableStart = afterBase.indexOf('<table');
+  const tableEnd = afterBase.indexOf('</table>');
+  if (tableStart === -1 || tableEnd === -1 || tableEnd < tableStart) return out;
+  const block = afterBase.slice(tableStart, tableEnd + 7);
+
+  // Tabellenzeilen: <tr>...</tr> mit mindestens 2 <td>
+  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let trMatch;
+  while ((trMatch = trRegex.exec(block)) !== null) {
+    const rowHtml = trMatch[1];
+    const tds = rowHtml.match(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi);
+    if (!tds || tds.length < 2) continue;
+    const label = stripHtml(tds[0]).replace(/:$/, '').trim().toLowerCase();
+    const value = stripHtml(tds[1]).trim();
+    if (label && value) out[label] = value;
+  }
+  return out;
+}
+
+function parseHtml(html: string): Result {
+  const out: Result = {};
+  const table = parseBaseDataTable(html);
+
+  const get = (keys: string[]): string | undefined => {
+    for (const k of keys) {
+      const v = table[k];
+      if (v) return v;
+    }
+    return undefined;
+  };
+
+  out.name = get(['name', 'pferdename']);
+  out.breed = get(['rasse', 'breed'])?.slice(0, 80);
+  const birthStr = get(['geburtsjahr', 'geb.', 'birth year', 'foaled']);
+  if (birthStr) {
+    const m = birthStr.match(/\d{4}/);
+    if (m) {
+      const y = parseInt(m[0], 10);
+      if (y >= 1990 && y <= new Date().getFullYear()) out.birthYear = y;
+    }
+  }
+  const genderStr = get(['geschlecht', 'gender'])?.toLowerCase();
+  if (genderStr) {
+    if (genderStr.includes('hengst')) out.gender = 'Hengst';
+    else if (genderStr.includes('stute')) out.gender = 'Stute';
+    else if (genderStr.includes('wallach')) out.gender = 'Wallach';
+  }
+  out.breedingAssociation = get(['zuchtverband', 'verband', 'breeding association'])?.slice(0, 120);
+  out.isoNr = get(['ueln', 'iso', 'passnummer'])?.slice(0, 30);
+  out.feiNr = get(['fei', 'fei-nr', 'fei nr', 'fei-nummer'])?.slice(0, 30);
+
+  // Fallback: og:title für Name
+  if (!out.name) {
+    const ogTitle = /<meta\s+property="og:title"\s+content="([^"]+)"/i.exec(html);
+    if (ogTitle?.[1]) {
+      const t = ogTitle[1].trim();
+      if (t && !t.toLowerCase().startsWith('rimondo')) out.name = t;
+    }
   }
   if (!out.name) {
     const title = /<title>([^<]+)<\/title>/i.exec(html);
@@ -33,23 +100,6 @@ function parseHtml(html: string, url: string): Result {
       if (t) out.name = t;
     }
   }
-
-  // Typische Begriffe auf Rimondo-Seiten (anpassen, falls Struktur bekannt)
-  const breedMatch = /(?:rasse|breed)[:\s]*([^<\n]+)/i.exec(html);
-  if (breedMatch?.[1]) out.breed = breedMatch[1].trim().slice(0, 80);
-
-  const yearMatch = /(?:geburtsjahr|birth\s*year|geb\.|foaled)[:\s]*(\d{4})/i.exec(html);
-  if (yearMatch?.[1]) {
-    const y = parseInt(yearMatch[1], 10);
-    if (y >= 1990 && y <= new Date().getFullYear()) out.birthYear = y;
-  }
-
-  if (/\bhengst\b/i.test(html) && !/\bwallach\b/i.test(html)) out.gender = 'Hengst';
-  else if (/\bstute\b/i.test(html)) out.gender = 'Stute';
-  else if (/\bwallach\b/i.test(html)) out.gender = 'Wallach';
-
-  const assocMatch = /(?:zuchtverband|breeding\s*association|verband)[:\s]*([^<\n]+)/i.exec(html);
-  if (assocMatch?.[1]) out.breedingAssociation = assocMatch[1].trim().slice(0, 120);
 
   return out;
 }
@@ -79,7 +129,9 @@ Deno.serve(async (req) => {
       });
     }
     const html = await res.text();
-    const result = parseHtml(html, url);
+    const result = parseHtml(html);
+    const feiFromUrl = /horse-details\/(\d+)(?:\/|$)/i.exec(url);
+    if (feiFromUrl?.[1] && !result.feiNr) result.feiNr = feiFromUrl[1];
     return new Response(JSON.stringify(result), {
       headers: { 'Content-Type': 'application/json', ...cors },
       status: 200,
