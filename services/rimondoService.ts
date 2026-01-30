@@ -17,29 +17,41 @@ export function isRimondoUrl(url: string): boolean {
   return RIMONDO_PATTERN.test((url || '').trim());
 }
 
-/** ID aus Rimondo-URL extrahieren (z. B. /horse-details/1355396/...) → FEI-Nr. */
-export function extractFeiNrFromRimondoUrl(url: string): string | undefined {
-  const m = /horse-details\/(\d+)(?:\/|$)/i.exec((url || '').trim());
-  return m?.[1];
+/** Name aus URL-Slug: /horse-details/1754189/daydream-z → Daydream Z */
+export function extractNameFromRimondoUrl(url: string): string | undefined {
+  const m = /horse-details\/\d+\/([a-z0-9_-]+)(?:\/|$)/i.exec((url || '').trim());
+  if (!m?.[1]) return undefined;
+  return m[1]
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/** Mindestdaten aus URL extrahieren (funktioniert auch ohne Edge Function). Nur Name aus Slug. */
+function getFallbackFromUrl(url: string): RimondoParsed {
+  const name = extractNameFromRimondoUrl(url);
+  const out: RimondoParsed = {};
+  if (name) out.name = name;
+  return out;
 }
 
 /**
  * Ruft Edge Function rimondo-fetch auf und liefert geparste Pferdedaten.
- * Bei Fehler oder ungültiger URL leeres Objekt.
+ * Fallback: Name aus URL-Slug, wenn Edge Function fehlschlägt.
  */
 export async function fetchRimondoData(url: string): Promise<RimondoParsed> {
   const u = (url || '').trim();
   if (!u || !isRimondoUrl(u)) return {};
+  const fallback = getFallbackFromUrl(u);
   try {
     const { data, error } = await supabase.functions.invoke<RimondoParsed>('rimondo-fetch', {
       body: { url: u },
     });
-    if (error) return {};
+    if (error) return fallback;
     const result = (data && typeof data === 'object') ? data : {};
-    const feiFromUrl = extractFeiNrFromRimondoUrl(u);
-    if (feiFromUrl && !result.feiNr) result.feiNr = feiFromUrl;
-    return result;
+    if (!result.name) result.name = fallback.name;
+    const hasAny = result.name || result.breed || result.birthYear || result.gender || result.breedingAssociation || result.isoNr || result.feiNr;
+    return hasAny ? result : fallback;
   } catch {
-    return {};
+    return fallback;
   }
 }
