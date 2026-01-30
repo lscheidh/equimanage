@@ -226,6 +226,14 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let mounted = true;
+    let done = false;
+    const setReady = () => {
+      if (mounted && !done) {
+        done = true;
+        setAuthReady(true);
+      }
+    };
+    const timeoutId = setTimeout(setReady, 8000);
     const load = async () => {
       try {
         const session = await auth.getSession();
@@ -255,7 +263,8 @@ const App: React.FC = () => {
         setHorses([]);
         setView(UserView.OWNER);
       } finally {
-        if (mounted) setAuthReady(true);
+        clearTimeout(timeoutId);
+        setReady();
       }
     };
     load();
@@ -282,6 +291,8 @@ const App: React.FC = () => {
     });
     return () => {
       mounted = false;
+      done = true;
+      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, [loadProfileAndData, clearAuthForms]);
@@ -1108,8 +1119,8 @@ const App: React.FC = () => {
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN) *</label><input required type="text" value={newHorseData.isoNr} onChange={e => setNewHorseData({...newHorseData, isoNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="z.B. DE..." /></div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FEI-Nr.</label><input type="text" value={newHorseData.feiNr} onChange={e => setNewHorseData({...newHorseData, feiNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="optional" /></div>
                 <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr *</label><input required type="number" value={newHorseData.birthYear} onChange={e => setNewHorseData({...newHorseData, birthYear: parseInt(e.target.value, 10) || new Date().getFullYear()})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
-                <div className="col-span-2 pt-4 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rimondo</div>
-                <div className="col-span-2 flex flex-col sm:flex-row gap-2">
+                <div className="col-span-2 pt-4 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden">Rimondo</div>
+                <div className="col-span-2 flex flex-col sm:flex-row gap-2 hidden">
                   <input type="url" value={rimondoUrl} onChange={e => setRimondoUrl(e.target.value)} placeholder="Rimondo-Profil-URL" className="flex-1 min-w-0 p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
                   <button type="button" onClick={async () => { if (!rimondo.isRimondoUrl(rimondoUrl)) return; setRimondoLoading(true); setHorseError(null); setRimondoPreviewData(null); try { const d = await rimondo.fetchRimondoData(rimondoUrl); const hasData = d.name || d.breed || d.birthYear || d.gender || d.breedingAssociation || d.isoNr || d.feiNr; if (hasData) setRimondoPreviewData(d); else setHorseError('Keine Pferdedaten auf der Rimondo-Seite gefunden.'); } catch { setHorseError('Rimondo-Daten konnten nicht geladen werden.'); } finally { setRimondoLoading(false); } }} disabled={rimondoLoading || !rimondo.isRimondoUrl(rimondoUrl)} className="px-4 py-3 bg-violet-600 text-white text-sm font-bold rounded-2xl hover:bg-violet-700 disabled:opacity-50 shrink-0">{rimondoLoading ? 'Laden…' : 'Von Rimondo laden'}</button>
                 </div>
