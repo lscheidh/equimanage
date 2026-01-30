@@ -151,16 +151,20 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
     );
   };
 
-  const vaccsByDate = useMemo(() => {
-    const byDate = new Map<string, Vaccination[]>();
+  const [vaccSortBy, setVaccSortBy] = useState<'date' | 'type'>('date');
+
+  const vaccsByYear = useMemo(() => {
+    const byYear = new Map<number, { date: string; vaccs: Vaccination[] }[]>();
     for (const v of horse.vaccinations) {
-      const d = v.date;
-      if (!byDate.has(d)) byDate.set(d, []);
-      byDate.get(d)!.push(v);
+      const year = parseInt(v.date.slice(0, 4), 10);
+      if (!byYear.has(year)) byYear.set(year, []);
+      const list = byYear.get(year)!;
+      const existing = list.find(x => x.date === v.date);
+      if (existing) existing.vaccs.push(v);
+      else list.push({ date: v.date, vaccs: [v] });
     }
-    return Array.from(byDate.entries())
-      .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([date, vaccs]) => ({ date, vaccs }));
+    for (const arr of byYear.values()) arr.sort((a, b) => b.date.localeCompare(a.date));
+    return Array.from(byYear.entries()).sort((a, b) => b[0] - a[0]).map(([year, items]) => ({ year, items }));
   }, [horse.vaccinations]);
 
   return (
@@ -245,54 +249,90 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                 <button onClick={() => openEntryModal('vacc')} className="px-5 py-2 text-xs font-black text-emerald-600 bg-emerald-50 rounded-2xl hover:bg-emerald-100 transition-all shrink-0">+ NEU</button>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest"><tr><th className="px-8 py-4">Datum</th><th className="px-8 py-4">Typ / Sequenz</th></tr></thead>
-                <tbody className="divide-y divide-slate-50">
-                  {vaccsByDate.map(({ date, vaccs }) => (
-                    <tr key={date} className="hover:bg-slate-50/50 group transition-colors">
-                      <td className="px-8 py-5 text-sm font-medium text-slate-600 align-top">{date}</td>
-                      <td className="px-8 py-5 align-top">
-                        <div className="flex flex-wrap gap-x-4 gap-y-2">
-                          {vaccs.map(v => {
-                            const isPlanned = v.status === 'planned';
-                            return (
-                              <span key={v.id} className="inline-flex items-center gap-1.5 flex-wrap">
-                                <span className="font-bold text-slate-800">{v.type} <span className="text-[10px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-md ml-1">{v.sequence}</span></span>
-                                {isPlanned && <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Geplant</span>}
-                                {isPlanned ? (
-                                  <button
-                                    type="button"
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      setEditingItem(v);
-                                      setEntryData({ ...v, date: new Date().toISOString().split('T')[0], vetName: v.vetName ?? '', provider: '', notes: '' });
-                                      setShowVaccModal(true);
-                                    }}
-                                    className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 px-2 py-1 rounded-lg transition-all"
-                                    title="Nach durchgeführter Impfung aktivieren"
-                                  >
-                                    Aktivieren
-                                  </button>
-                                ) : (
-                                  <>
-                                    <button type="button" onClick={e => { e.stopPropagation(); setEditingItem(v); setEntryData({...v}); setShowVaccModal(true); }} className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Bearbeiten">
-                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                                    </button>
-                                    <button type="button" onClick={e => { e.stopPropagation(); setTargetId(v.id); setShowDeleteConfirm('vacc'); }} className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Löschen">
-                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                    </button>
-                                  </>
-                                )}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </td>
-                    </tr>
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sortierung:</span>
+                <div className="flex bg-slate-100 p-1 rounded-xl">
+                  <button type="button" onClick={() => setVaccSortBy('date')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${vaccSortBy === 'date' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}>Nach Datum</button>
+                  <button type="button" onClick={() => setVaccSortBy('type')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${vaccSortBy === 'type' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}>Nach Typ</button>
+                </div>
+              </div>
+
+              {vaccsByYear.length === 0 ? (
+                <p className="text-sm text-slate-400 py-8 text-center">Noch keine Impfungen eingetragen.</p>
+              ) : (
+                <div className="space-y-2">
+                  {vaccsByYear.map(({ year, items }) => (
+                    <details key={year} className="group bg-slate-50/50 rounded-2xl overflow-hidden border border-slate-100">
+                      <summary className="flex items-center justify-between px-5 py-4 cursor-pointer list-none font-black text-slate-800 hover:bg-slate-100/50 transition-colors">
+                        <span>{year}</span>
+                        <span className="text-slate-400 text-xs group-open:rotate-180 transition-transform">▼</span>
+                      </summary>
+                      <div className="border-t border-slate-100">
+                        {vaccSortBy === 'type' ? (
+                          (() => {
+                            const byType = new Map<string, Vaccination[]>();
+                            for (const { vaccs } of items) for (const v of vaccs) {
+                              const t = v.type || 'Influenza';
+                              if (!byType.has(t)) byType.set(t, []);
+                              byType.get(t)!.push(v);
+                            }
+                            return Array.from(byType.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([type, vaccs]) => (
+                              <div key={type} className="px-5 py-3 border-b border-slate-50 last:border-0">
+                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{type}</div>
+                                <ul className="space-y-2">
+                                  {vaccs.sort((a, b) => b.date.localeCompare(a.date)).map(v => (
+                                    <li key={v.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                                      <span className="text-sm font-medium text-slate-600">{v.date}</span>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-bold text-slate-800">{v.type} <span className="text-[10px] font-black bg-slate-100 text-slate-400 px-2 py-0.5 rounded">{v.sequence}</span></span>
+                                        {v.status === 'planned' && <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Geplant</span>}
+                                        {v.status === 'planned' ? (
+                                          <button type="button" onClick={() => { setEditingItem(v); setEntryData({ ...v, date: new Date().toISOString().split('T')[0], vetName: v.vetName ?? '', provider: '', notes: '' }); setShowVaccModal(true); }} className="text-xs font-bold text-emerald-600 hover:text-emerald-800">Aktivieren</button>
+                                        ) : (
+                                          <>
+                                            <button type="button" onClick={() => { setEditingItem(v); setEntryData({...v}); setShowVaccModal(true); }} className="p-1.5 text-slate-300 hover:text-indigo-600 rounded-lg" title="Bearbeiten"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                                            <button type="button" onClick={() => { setTargetId(v.id); setShowDeleteConfirm('vacc'); }} className="p-1.5 text-slate-300 hover:text-rose-600 rounded-lg" title="Löschen"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                          </>
+                                        )}
+                                      </div>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ));
+                          })()
+                        ) : (
+                          items.map(({ date, vaccs }) => (
+                            <div key={date} className="px-5 py-4 flex flex-col sm:flex-row sm:items-start gap-2 border-b border-slate-50 last:border-0">
+                              <span className="text-sm font-medium text-slate-600 shrink-0 sm:w-28">{date}</span>
+                              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                                {vaccs.map(v => {
+                                  const isPlanned = v.status === 'planned';
+                                  return (
+                                    <span key={v.id} className="inline-flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-bold text-slate-800">{v.type} <span className="text-[10px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-md ml-1">{v.sequence}</span></span>
+                                      {isPlanned && <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Geplant</span>}
+                                      {isPlanned ? (
+                                        <button type="button" onClick={e => { e.stopPropagation(); setEditingItem(v); setEntryData({ ...v, date: new Date().toISOString().split('T')[0], vetName: v.vetName ?? '', provider: '', notes: '' }); setShowVaccModal(true); }} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 px-2 py-1 rounded-lg" title="Aktivieren">Aktivieren</button>
+                                      ) : (
+                                        <>
+                                          <button type="button" onClick={e => { e.stopPropagation(); setEditingItem(v); setEntryData({...v}); setShowVaccModal(true); }} className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg" title="Bearbeiten"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                                          <button type="button" onClick={e => { e.stopPropagation(); setTargetId(v.id); setShowDeleteConfirm('vacc'); }} className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg" title="Löschen"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                        </>
+                                      )}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </details>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              )}
             </div>
           </div>
 

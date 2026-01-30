@@ -161,7 +161,8 @@ Deno.serve(async (req) => {
   try {
     const body = (await req.json()) as { url?: string };
     const url = typeof body?.url === 'string' ? body.url.trim() : '';
-    if (!url || !url.startsWith('https://www.rimondo.com/')) {
+    const rimondoMatch = /^https:\/\/(www\.)?rimondo\.com\//i.exec(url);
+    if (!url || !rimondoMatch) {
       return new Response(JSON.stringify({}), {
         headers: { 'Content-Type': 'application/json', ...cors },
         status: 200,
@@ -169,7 +170,11 @@ Deno.serve(async (req) => {
     }
 
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'EquiManage/1.0 (https://equimanage.app)' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
+      },
       redirect: 'follow',
     });
     if (!res.ok) {
@@ -181,8 +186,6 @@ Deno.serve(async (req) => {
     }
     const html = await res.text();
     const result = parseHtml(html);
-    const feiFromUrl = /horse-details\/(\d+)(?:\/|$)/i.exec(url);
-    if (feiFromUrl?.[1] && !result.feiNr) result.feiNr = feiFromUrl[1];
     if (!result.name) {
       const urlName = nameFromUrl(url);
       if (urlName) result.name = urlName;
