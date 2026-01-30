@@ -2,6 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Horse, Vaccination, ServiceRecord, ServiceType, ComplianceStatus } from '../types';
 import { checkVaccinationCompliance, getStatusColor, getStatusLabel } from '../logic';
+
+const todayStr = () => new Date().toISOString().split('T')[0];
 import { uploadHorseImage, HORSE_PLACEHOLDER_IMAGE } from '../services/horseImageService';
 import * as rimondo from '../services/rimondoService';
 
@@ -85,6 +87,9 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
 
   const handleEntrySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (entryData.date > todayStr()) {
+      return;
+    }
     const ids = isBulkEntry ? selectedHorseIds : [horse.id];
     
     if (showVaccModal) {
@@ -214,9 +219,30 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
         <div className="lg:col-span-2 space-y-8">
           <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-8 border-b border-slate-50">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-black text-slate-800 tracking-tight">Impfhistorie</h3>
-                <button onClick={() => openEntryModal('vacc')} className="px-5 py-2 text-xs font-black text-emerald-600 bg-emerald-50 rounded-2xl hover:bg-emerald-100 transition-all">+ NEU</button>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight">Impfhistorie</h3>
+                  {compliance.allNextDue.length > 0 && (
+                    <details className="mt-3 group">
+                      <summary className="cursor-pointer text-sm text-slate-500 hover:text-indigo-600 font-medium list-none flex items-center gap-2">
+                        <span className="group-open:rotate-90 transition-transform">▶</span>
+                        Nächste Fälligkeiten pro Kategorie
+                      </summary>
+                      <ul className="mt-2 pl-5 space-y-1.5 text-sm">
+                        {compliance.allNextDue.map((n, i) => (
+                          <li key={i} className="flex flex-wrap items-baseline gap-2">
+                            <span className={`inline-block w-2 h-2 rounded-full shrink-0 mt-1 ${getStatusColor(n.status)}`} />
+                            <span className="font-semibold text-slate-800">{n.type} ({n.sequence}):</span>
+                            <span className={n.status === ComplianceStatus.RED ? 'text-rose-600' : n.status === ComplianceStatus.YELLOW ? 'text-amber-600' : 'text-slate-600'}>
+                              {n.status === ComplianceStatus.GREEN ? `Ab ${n.dueDate} fällig, spätestens bis ${n.graceEndDate}` : n.message}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </div>
+                <button onClick={() => openEntryModal('vacc')} className="px-5 py-2 text-xs font-black text-emerald-600 bg-emerald-50 rounded-2xl hover:bg-emerald-100 transition-all shrink-0">+ NEU</button>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -463,7 +489,11 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Datum</label><input type="date" value={entryData.date} onChange={e => setEntryData({...entryData, date: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" required /></div>
+                <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Datum</label>
+                <input type="date" max={todayStr()} value={entryData.date} onChange={e => setEntryData({...entryData, date: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" required title="Keine zukünftigen Daten" />
+                {entryData.date > todayStr() && <p className="text-xs text-rose-600 mt-1">Nur Datum heute oder in der Vergangenheit.</p>}
+              </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">{showVaccModal ? 'Tierarzt' : 'Dienstleister'}</label>
                   <input type="text" value={showVaccModal ? entryData.vetName : entryData.provider} onChange={e => setEntryData({...entryData, [showVaccModal ? 'vetName' : 'provider']: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Name..." />

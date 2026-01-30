@@ -56,13 +56,24 @@ export interface DueItem {
   message: string;
 }
 
+export interface NextDuePerType {
+  type: string;
+  sequence: string;
+  dueDate: string;
+  graceEndDate: string;
+  status: ComplianceStatus;
+  message: string;
+}
+
 export interface VaccComplianceResult {
   status: ComplianceStatus;
   message: string;
-  /** Bei Konform: nächste fällige Impfung (Typ, Sequenz, Datum) für Anzeige „Nächste Impfung“. */
-  nextDueInfo: { type: string; sequence: string; dueDate: string } | null;
+  /** Bei Konform: nächste fällige Impfung (Typ, Sequenz, Fällig-ab, Spätestens-bis). */
+  nextDueInfo: { type: string; sequence: string; dueDate: string; graceEndDate: string } | null;
   /** Alle Fälligkeiten (fällig/kritisch) pro Impfkategorie; für Auflistung überall. */
   dueItems: DueItem[];
+  /** Pro Impfkategorie: nächste Fälligkeit (für Impfhistorie-Hinweis). */
+  allNextDue: NextDuePerType[];
 }
 
 /**
@@ -79,7 +90,7 @@ export interface VaccComplianceResult {
  * 2. Nur letzte Booster-Impfung: Ein Eintrag pro Typ mit sequence Booster / isBooster. Keine
  *    V1/V2/V3 nötig. Gleiche Fällig-/Kritisch-Regeln ab Booster-Datum.
  *
- * Mitteilungen: Kategorie + Sequenz; fällig: „bis DD.MM.YYYY (X Tage)“; kritisch: „seit DD.MM.YYYY (X Tage überfällig)“.
+ * Mitteilungen: Zwei Schritte klar getrennt – 1) Fällig ab [Datum], 2) Spätestens bis [Datum] (noch X Tage).
  */
 export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
   const byType = new Map<string, Vaccination[]>();
@@ -99,10 +110,11 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
   let earliestNextDue: Date | null = null;
 
   if (byType.size === 0) {
-    return { status: ComplianceStatus.RED, message: 'Keine Impfdaten gefunden.', nextDueInfo: null, dueItems: [] };
+    return { status: ComplianceStatus.RED, message: 'Keine Impfdaten gefunden.', nextDueInfo: null, dueItems: [], allNextDue: [] };
   }
 
   const dueItems: DueItem[] = [];
+  const allNextDue: NextDuePerType[] = [];
 
   for (const type of VACC_TYPES) {
     const list = byType.get(type) ?? [];
@@ -154,6 +166,7 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
           ? `${label}: ohne V1 – nicht konform.`
           : `${label}: Abstand zur Vorimpfung nicht eingehalten.`;
       dueItems.push({ type, sequence: phase, status: ComplianceStatus.RED, message: msg });
+      allNextDue.push({ type, sequence: phase, dueDate: formatDate(dueDateMin), graceEndDate: formatDate(dueDateMax), status: ComplianceStatus.RED, message: msg });
       if (worstStatus === ComplianceStatus.GREEN || worstStatus === ComplianceStatus.YELLOW) {
         worstStatus = ComplianceStatus.RED;
         worstMessage = msg;
@@ -167,9 +180,10 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
         : d >= DAYS_V2_OVERDUE;
     if (isOverdue) {
       const overdue = d - dueMax;
-      const dueDate = dueDateMax;
-      const msg = `${label} überfällig seit ${formatDate(dueDate)} (${overdue} Tage überfällig)`;
+      const spaetestensDate = dueDateMax;
+      const msg = `${label}: Überfällig. Spätestens-Termin war ${formatDate(spaetestensDate)} (seit ${overdue} Tagen überfällig)`;
       dueItems.push({ type, sequence: phase, status: ComplianceStatus.RED, message: msg });
+      allNextDue.push({ type, sequence: phase, dueDate: formatDate(dueDateMin), graceEndDate: formatDate(spaetestensDate), status: ComplianceStatus.RED, message: msg });
       if (worstStatus === ComplianceStatus.GREEN || worstStatus === ComplianceStatus.YELLOW) {
         worstStatus = ComplianceStatus.RED;
         worstMessage = msg;
@@ -178,14 +192,15 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
     }
 
     if (d >= notifyFrom) {
-      const daysLeft = dueMin - d;
-      const endDate = dueDateMax;
-      const daysLeftToEnd = Math.max(0, Math.floor((endDate.getTime() - Date.now()) / (1000 * 3600 * 24)));
+      const daysLeftToFällig = dueMin - d;
+      const spaetestensDate = dueDateMax;
+      const daysLeftToEnd = Math.max(0, Math.floor((spaetestensDate.getTime() - Date.now()) / (1000 * 3600 * 24)));
       const msg =
-        daysLeft <= 0
-          ? `${label} fällig bis ${formatDate(endDate)} (${daysLeftToEnd} Tage)`
-          : `${label} in ${daysLeft} Tagen fällig bis ${formatDate(endDate)} (${daysLeftToEnd} Tage)`;
+        daysLeftToFällig <= 0
+          ? `${label}: Fällig. Spätestens bis ${formatDate(spaetestensDate)} (noch ${daysLeftToEnd} Tage)`
+          : `${label}: Ab ${formatDate(dueDateMin)} fällig. Spätestens bis ${formatDate(spaetestensDate)} (noch ${daysLeftToEnd} Tage Überziehungsfrist)`;
       dueItems.push({ type, sequence: phase, status: ComplianceStatus.YELLOW, message: msg });
+      allNextDue.push({ type, sequence: phase, dueDate: formatDate(dueDateMin), graceEndDate: formatDate(spaetestensDate), status: ComplianceStatus.YELLOW, message: msg });
       if (worstStatus === ComplianceStatus.GREEN) {
         worstStatus = ComplianceStatus.YELLOW;
         worstMessage = msg;
@@ -193,15 +208,27 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
       continue;
     }
 
+    allNextDue.push({
+      type, sequence: phase,
+      dueDate: formatDate(dueDateMin),
+      graceEndDate: formatDate(dueDateMax),
+      status: ComplianceStatus.GREEN,
+      message: `${label}: Ab ${formatDate(dueDateMin)} fällig, spätestens bis ${formatDate(dueDateMax)}`,
+    });
     const nextDueDate = dueDateMin;
     if (!earliestNextDue || nextDueDate.getTime() < earliestNextDue.getTime()) {
       earliestNextDue = nextDueDate;
-      nextDue = { type, sequence: phase, dueDate: formatDate(nextDueDate) };
+      nextDue = {
+        type,
+        sequence: phase,
+        dueDate: formatDate(nextDueDate),
+        graceEndDate: formatDate(dueDateMax),
+      };
     }
   }
 
   if (worstStatus === ComplianceStatus.GREEN && nextDue) {
-    worstMessage = `${nextDue.sequence} ${nextDue.type} am ${nextDue.dueDate}`;
+    worstMessage = `${nextDue.sequence} ${nextDue.type}: Ab ${nextDue.dueDate} fällig, spätestens bis ${nextDue.graceEndDate}`;
   }
 
   return {
@@ -209,6 +236,7 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
     message: worstMessage,
     nextDueInfo: worstStatus === ComplianceStatus.GREEN ? nextDue : null,
     dueItems,
+    allNextDue,
   };
 }
 
