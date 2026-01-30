@@ -28,27 +28,44 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-/** Parst #base_data Tabelle (Zeilen mit Label + Wert). */
+/** Parst #base_data Tabelle oder dl/dt/dd (Zeilen mit Label + Wert). */
 function parseBaseDataTable(html: string): Record<string, string> {
   const out: Record<string, string> = {};
-  const baseDataStart = html.indexOf('id="base_data"');
-  if (baseDataStart === -1) return out;
-  const afterBase = html.slice(baseDataStart);
-  const tableStart = afterBase.indexOf('<table');
-  const tableEnd = afterBase.indexOf('</table>');
-  if (tableStart === -1 || tableEnd === -1 || tableEnd < tableStart) return out;
-  const block = afterBase.slice(tableStart, tableEnd + 7);
+  const baseDataStart = html.search(/id=["']base_data["']|id=["']base-data["']/i);
+  const block = baseDataStart >= 0 ? html.slice(baseDataStart, baseDataStart + 12000) : html;
 
-  // Tabellenzeilen: <tr>...</tr> mit mindestens 2 <td>
+  const addPair = (label: string, value: string) => {
+    const k = label.replace(/:$/, '').trim().toLowerCase();
+    if (k && value.trim()) out[k] = value.trim();
+  };
+
+  // 1) Tabelle: <tr> mit <td> oder <th>
   const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let trMatch;
   while ((trMatch = trRegex.exec(block)) !== null) {
     const rowHtml = trMatch[1];
-    const tds = rowHtml.match(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi);
-    if (!tds || tds.length < 2) continue;
-    const label = stripHtml(tds[0]).replace(/:$/, '').trim().toLowerCase();
-    const value = stripHtml(tds[1]).trim();
-    if (label && value) out[label] = value;
+    const cells = rowHtml.match(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi);
+    if (!cells || cells.length < 2) continue;
+    addPair(stripHtml(cells[0]), stripHtml(cells[1]));
+  }
+
+  // 2) Definition list: <dt>Label</dt><dd>Wert</dd>
+  if (Object.keys(out).length === 0) {
+    const dtRegex = /<dt[^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/gi;
+    let ddMatch;
+    while ((ddMatch = dtRegex.exec(block)) !== null) {
+      addPair(stripHtml(ddMatch[1]), stripHtml(ddMatch[2]));
+    }
+  }
+
+  // 3) Label: Wert Muster im Fließtext (Fallback)
+  if (Object.keys(out).length === 0) {
+    const labels = ['Name', 'Lebensnummer', 'FEI ID', 'Geboren', 'Rasse', 'Geschlecht', 'Zuchtverband'];
+    for (const lbl of labels) {
+      const re = new RegExp(lbl + '\\s*[:\\s]*([^<\n]{1,80})', 'i');
+      const m = re.exec(block);
+      if (m) addPair(lbl, m[1]);
+    }
   }
   return out;
 }
@@ -65,9 +82,12 @@ function parseHtml(html: string): Result {
     return undefined;
   };
 
+  // Rimondo #base_data Zuordnung (Labels werden toLowerCase):
+  // Pferdename=Name, ISO-Nr.=Lebensnummer, FEI-Nr.=FEI ID, Geburtsjahr=Geboren, Rasse=Rasse
   out.name = get(['name', 'pferdename']);
-  out.breed = get(['rasse', 'breed'])?.slice(0, 80);
-  const birthStr = get(['geburtsjahr', 'geb.', 'birth year', 'foaled']);
+  out.isoNr = get(['lebensnummer', 'ueln', 'iso', 'passnummer'])?.slice(0, 30);
+  out.feiNr = get(['fei id', 'fei-id', 'fei', 'fei-nr', 'fei nr'])?.slice(0, 30);
+  const birthStr = get(['geboren', 'geburtsjahr', 'geb.', 'birth year', 'foaled']);
   if (birthStr) {
     const m = birthStr.match(/\d{4}/);
     if (m) {
@@ -75,6 +95,7 @@ function parseHtml(html: string): Result {
       if (y >= 1990 && y <= new Date().getFullYear()) out.birthYear = y;
     }
   }
+  out.breed = get(['rasse', 'breed'])?.slice(0, 80);
   const genderStr = get(['geschlecht', 'gender'])?.toLowerCase();
   if (genderStr) {
     if (genderStr.includes('hengst')) out.gender = 'Hengst';
@@ -82,8 +103,6 @@ function parseHtml(html: string): Result {
     else if (genderStr.includes('wallach')) out.gender = 'Wallach';
   }
   out.breedingAssociation = get(['zuchtverband', 'verband', 'breeding association'])?.slice(0, 120);
-  out.isoNr = get(['ueln', 'iso', 'passnummer'])?.slice(0, 30);
-  out.feiNr = get(['fei', 'fei-nr', 'fei nr', 'fei-nummer'])?.slice(0, 30);
 
   // Fallback: og:title für Name
   if (!out.name) {
