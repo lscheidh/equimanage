@@ -53,8 +53,11 @@ export async function fetchRimondoData(url: string): Promise<RimondoParsed> {
     );
     const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
     if (error) return fallback;
-    const result = (data && typeof data === 'object') ? data : {};
-    if (!result.name) result.name = fallback.name;
+    let result: RimondoParsed = {};
+    if (data != null && typeof data === 'object' && !Array.isArray(data)) {
+      result = data as RimondoParsed;
+    }
+    if (!result.name && fallback.name) result.name = fallback.name;
     const hasAny = result.name || result.breed || result.birthYear || result.gender || result.breedingAssociation || result.isoNr || result.feiNr;
     return hasAny ? result : fallback;
   } catch {
