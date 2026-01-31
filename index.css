@@ -1,6 +1,12 @@
 /* EquiManage – Basis-Styles; Tailwind kommt per CDN */
 html, body { overflow-x: hidden; }
 input, select, textarea { max-width: 100%; font-size: 16px; }
+/* Mobil: 16px verhindert iOS-Zoom bei Fokus */
 @media (max-width: 640px) {
   input, select, textarea { font-size: 16px !important; }
+}
+/* Modals mobil: Safe-Area, kein Überlappen */
+@media (max-width: 640px) {
+  .modal-overlay { padding: 0.5rem; padding-bottom: env(safe-area-inset-bottom, 0.5rem); align-items: flex-start; }
+  .modal-content { margin-top: 1rem; margin-bottom: 2rem; max-height: calc(100dvh - 3rem) !important; }
 }

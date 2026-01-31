@@ -303,9 +303,9 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto" onClick={onClose} role="presentation">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-4 overflow-y-auto modal-overlay" onClick={onClose} role="presentation">
       <div
-        className="bg-white rounded-2xl sm:rounded-[2.5rem] w-full max-w-[min(100vw-2rem,42rem)] max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col"
+        className="bg-white rounded-2xl sm:rounded-[2.5rem] w-full max-w-[min(100vw-1rem,42rem)] max-h-[calc(100dvh-2rem)] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col modal-content"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-100 px-4 sm:px-8 py-4 sm:py-5">
@@ -444,7 +444,7 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
               value={vetQuery}
               onChange={(e) => { setVetQuery(e.target.value); setSelectedVetId(null); }}
               placeholder="PLZ (25 km Umkreis) oder Name der Praxis"
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-base"
             />
             {vetsLoading && <p className="text-xs text-slate-400 mt-1">Tierärzte werden geladen…</p>}
             {vetResultsLoading && <p className="text-xs text-slate-400 mt-1">Suche im Umkreis von 25 km…</p>}

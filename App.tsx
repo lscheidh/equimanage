@@ -280,7 +280,7 @@ const App: React.FC = () => {
         return;
       }
       if (session && event !== 'INITIAL_SESSION') {
-        if (skipAuthTransitionRef.current) {
+        if (skipAuthTransitionRef.current && event !== 'TOKEN_REFRESHED') {
           skipAuthTransitionRef.current = false;
           return;
         }
@@ -296,6 +296,16 @@ const App: React.FC = () => {
       subscription.unsubscribe();
     };
   }, [loadProfileAndData, clearAuthForms]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && profile) {
+        loadProfileAndData();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [loadProfileAndData, profile]);
 
   useEffect(() => {
     if (regZip.length < 2) {
@@ -1082,7 +1092,7 @@ const App: React.FC = () => {
         <TerminVereinbarenModal horses={horses} profile={profile} onClose={() => setShowTerminModal(false)} />
       )}
       {showAddHorseModal && view === UserView.OWNER && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto" onClick={closeAddHorseModal} role="presentation">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-4 overflow-y-auto modal-overlay" onClick={closeAddHorseModal} role="presentation">
           {/* Rimondo-Bestätigung */}
           {rimondoPreviewData && (
             <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/60" onClick={e => e.stopPropagation()}>
@@ -1105,29 +1115,29 @@ const App: React.FC = () => {
               </div>
             </div>
           )}
-          <form onSubmit={handleCreateHorse} className="bg-white rounded-2xl sm:rounded-[2.5rem] p-5 sm:p-10 w-full max-w-[min(100vw-2rem,36rem)] shadow-2xl animate-in zoom-in-95 duration-200 space-y-5 sm:space-y-6 my-4 sm:my-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center border-b border-slate-100 pb-6">
-              <h4 className="text-2xl font-black tracking-tight">Neues Pferd</h4>
-              <div className="flex bg-slate-100 p-1.5 rounded-2xl">
+          <form onSubmit={handleCreateHorse} className="bg-white rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-10 w-full max-w-[min(100vw-1rem,36rem)] shadow-2xl animate-in zoom-in-95 duration-200 space-y-4 sm:space-y-6 my-2 sm:my-auto modal-content max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 border-b border-slate-100 pb-4 sm:pb-6">
+              <h4 className="text-xl sm:text-2xl font-black tracking-tight">Neues Pferd</h4>
+              <div className="flex bg-slate-100 p-1.5 rounded-2xl shrink-0">
                 <button type="button" onClick={() => setAddMode('manual')} className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${addMode === 'manual' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}>Manuell</button>
                 <button type="button" onClick={() => setAddMode('transfer')} className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${addMode === 'transfer' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}>Transfer-Code</button>
               </div>
             </div>
             {addMode === 'manual' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 max-h-[60vh] sm:max-h-[50vh] overflow-y-auto pr-2 sm:pr-3 custom-scrollbar">
-                <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename *</label><input required type="text" value={newHorseData.name} onChange={e => setNewHorseData({...newHorseData, name: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Name" /></div>
-                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN) *</label><input required type="text" value={newHorseData.isoNr} onChange={e => setNewHorseData({...newHorseData, isoNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="z.B. DE..." /></div>
-                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FEI-Nr.</label><input type="text" value={newHorseData.feiNr} onChange={e => setNewHorseData({...newHorseData, feiNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="optional" /></div>
-                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr *</label><input required type="number" value={newHorseData.birthYear} onChange={e => setNewHorseData({...newHorseData, birthYear: parseInt(e.target.value, 10) || new Date().getFullYear()})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5 max-h-[50vh] sm:max-h-[50vh] overflow-y-auto pr-1 sm:pr-3 custom-scrollbar">
+                <div className="col-span-2 sm:col-span-2 space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename *</label><input required type="text" value={newHorseData.name} onChange={e => setNewHorseData({...newHorseData, name: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-base" placeholder="Name" /></div>
+                <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN) *</label><input required type="text" value={newHorseData.isoNr} onChange={e => setNewHorseData({...newHorseData, isoNr: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" placeholder="z.B. DE..." /></div>
+                <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FEI-Nr.</label><input type="text" value={newHorseData.feiNr} onChange={e => setNewHorseData({...newHorseData, feiNr: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" placeholder="optional" /></div>
+                <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr *</label><input required type="number" value={newHorseData.birthYear} onChange={e => setNewHorseData({...newHorseData, birthYear: parseInt(e.target.value, 10) || new Date().getFullYear()})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-base" /></div>
                 <div className="col-span-2 pt-4 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden">Rimondo</div>
                 <div className="col-span-2 flex flex-col sm:flex-row gap-2 hidden">
                   <input type="url" value={rimondoUrl} onChange={e => setRimondoUrl(e.target.value)} placeholder="Rimondo-Profil-URL" className="flex-1 min-w-0 p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
                   <button type="button" onClick={async () => { if (!rimondo.isRimondoUrl(rimondoUrl)) return; setRimondoLoading(true); setHorseError(null); setRimondoPreviewData(null); try { const d = await rimondo.fetchRimondoData(rimondoUrl); const hasData = d.name || d.breed || d.birthYear || d.gender || d.breedingAssociation || d.isoNr || d.feiNr; if (hasData) setRimondoPreviewData(d); else setHorseError('Keine Pferdedaten auf der Rimondo-Seite gefunden.'); } catch { setHorseError('Rimondo-Daten konnten nicht geladen werden.'); } finally { setRimondoLoading(false); } }} disabled={rimondoLoading || !rimondo.isRimondoUrl(rimondoUrl)} className="px-4 py-3 bg-violet-600 text-white text-sm font-bold rounded-2xl hover:bg-violet-700 disabled:opacity-50 shrink-0">{rimondoLoading ? 'Laden…' : 'Von Rimondo laden'}</button>
                 </div>
-                <div className="col-span-2 pt-4 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Optionale Details</div>
-                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zuchtverband</label><input type="text" value={newHorseData.breedingAssociation} onChange={e => setNewHorseData({...newHorseData, breedingAssociation: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="z.B. Oldenburger Verband" /></div>
-                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Rasse</label><input type="text" value={newHorseData.breed} onChange={e => setNewHorseData({...newHorseData, breed: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
-                <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Chip-ID</label><input type="text" value={newHorseData.chipId} onChange={e => setNewHorseData({...newHorseData, chipId: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                <div className="col-span-2 pt-3 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Optionale Details</div>
+                <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zuchtverband</label><input type="text" value={newHorseData.breedingAssociation} onChange={e => setNewHorseData({...newHorseData, breedingAssociation: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-base" placeholder="z.B. Oldenburger Verband" /></div>
+                <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Rasse</label><input type="text" value={newHorseData.breed} onChange={e => setNewHorseData({...newHorseData, breed: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-base" /></div>
+                <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Chip-ID</label><input type="text" value={newHorseData.chipId} onChange={e => setNewHorseData({...newHorseData, chipId: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-base" /></div>
                 <div className="col-span-2 space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Profilbild</label>
                   <div className="flex flex-wrap items-center gap-3">
@@ -1147,15 +1157,15 @@ const App: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="py-12 space-y-6 text-center">
+              <div className="py-8 sm:py-12 space-y-4 sm:space-y-6 text-center">
                 <p className="text-sm text-slate-400 font-medium">Gib den 6-stelligen Transfer-Code ein, um ein Pferd zu übernehmen.</p>
-                <input type="text" maxLength={6} value={redeemCode} onChange={e => setRedeemCode(e.target.value.replace(/\D/g,''))} placeholder="000000" className="w-full p-8 text-center text-5xl font-black tracking-[1rem] bg-slate-50 border border-slate-200 rounded-[2.5rem] outline-none focus:ring-2 focus:ring-indigo-500" />
+                <input type="text" maxLength={6} value={redeemCode} onChange={e => setRedeemCode(e.target.value.replace(/\D/g,''))} placeholder="000000" className="w-full p-4 sm:p-8 text-center text-3xl sm:text-5xl font-black tracking-[0.5rem] sm:tracking-[1rem] bg-slate-50 border border-slate-200 rounded-2xl sm:rounded-[2.5rem] outline-none focus:ring-2 focus:ring-indigo-500 text-base" />
               </div>
             )}
             {horseError && <p className="text-sm text-rose-600 font-medium">{horseError}</p>}
-            <div className="flex gap-4 pt-4 border-t border-slate-50">
-              <button type="button" onClick={closeAddHorseModal} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200">Abbrechen</button>
-              <button type="submit" disabled={horseCreateLoading} className="flex-1 py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-60">{horseCreateLoading ? 'Wird hinzugefügt…' : 'Pferd hinzufügen'}</button>
+            <div className="flex gap-3 sm:gap-4 pt-4 border-t border-slate-50">
+              <button type="button" onClick={closeAddHorseModal} className="flex-1 py-3 sm:py-4 bg-slate-100 text-slate-700 font-bold rounded-xl sm:rounded-2xl hover:bg-slate-200 text-sm sm:text-base">Abbrechen</button>
+              <button type="submit" disabled={horseCreateLoading} className="flex-1 py-3 sm:py-4 bg-indigo-600 text-white font-bold rounded-xl sm:rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-60 text-sm sm:text-base">{horseCreateLoading ? 'Wird hinzugefügt…' : 'Pferd hinzufügen'}</button>
             </div>
           </form>
         </div>
