@@ -78,12 +78,16 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
     setShowEditHorseMask(false);
   };
 
-  const confirmDelete = () => {
-    if (showDeleteConfirm === 'horse') onDelete(horse.id);
-    if (showDeleteConfirm === 'service' && targetId) onDeleteService(horse.id, targetId);
-    if (showDeleteConfirm === 'vacc' && targetId) onDeleteVaccination(horse.id, targetId);
-    setShowDeleteConfirm(null);
-    setTargetId(null);
+  const confirmDelete = async () => {
+    try {
+      if (showDeleteConfirm === 'horse') await onDelete(horse.id);
+      if (showDeleteConfirm === 'service' && targetId) await onDeleteService(horse.id, targetId);
+      if (showDeleteConfirm === 'vacc' && targetId) await onDeleteVaccination(horse.id, targetId);
+      setShowDeleteConfirm(null);
+      setTargetId(null);
+    } catch {
+      /* Fehlermeldung bereits per alert; Bestätigungsfenster bleibt offen */
+    }
   };
 
   const handleEntrySubmit = async (e: React.FormEvent) => {
@@ -92,35 +96,37 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
       return;
     }
     const ids = isBulkEntry ? selectedHorseIds : [horse.id];
-    
-    if (showVaccModal) {
-      if (editingItem) {
-        const payload = { ...editingItem, ...entryData, isBooster: entryData.sequence === 'Booster' };
-        if ((editingItem as Vaccination).status === 'planned') (payload as Vaccination).status = 'verified';
-        onUpdateVaccination(horse.id, payload as Vaccination);
-        setShowVaccModal(false);
-      } else {
-        const types = selectedVaccTypes.length ? selectedVaccTypes : [entryData.type];
-        const base = { ...entryData, isBooster: entryData.sequence === 'Booster', status: 'pending' as const };
-        for (const type of types) {
-          await onBulkAddVaccination(ids, { ...base, type });
+    try {
+      if (showVaccModal) {
+        if (editingItem) {
+          const payload = { ...editingItem, ...entryData, isBooster: entryData.sequence === 'Booster' };
+          if ((editingItem as Vaccination).status === 'planned') (payload as Vaccination).status = 'verified';
+          await onUpdateVaccination(horse.id, payload as Vaccination);
+        } else {
+          const types = selectedVaccTypes.length ? selectedVaccTypes : [entryData.type];
+          const base = { ...entryData, isBooster: entryData.sequence === 'Booster', status: 'pending' as const };
+          for (const type of types) {
+            await onBulkAddVaccination(ids, { ...base, type });
+          }
         }
         setShowVaccModal(false);
+      } else {
+        const servicePayload: Omit<ServiceRecord, 'id'> = {
+          type: entryData.type as ServiceType,
+          date: entryData.date,
+          notes: entryData.notes || undefined,
+          provider: entryData.provider || undefined,
+        };
+        if (editingItem) await onUpdateService(horse.id, { ...editingItem, ...servicePayload });
+        else await onBulkAddService(ids, servicePayload);
+        setShowServiceModal(false);
       }
-    } else {
-      const servicePayload: Omit<ServiceRecord, 'id'> = {
-        type: entryData.type as ServiceType,
-        date: entryData.date,
-        notes: entryData.notes || undefined,
-        provider: entryData.provider || undefined,
-      };
-      if (editingItem) onUpdateService(horse.id, { ...editingItem, ...servicePayload });
-      else onBulkAddService(ids, servicePayload);
-      setShowServiceModal(false);
+      setEditingItem(null);
+      setIsBulkEntry(false);
+      setSelectedHorseIds([horse.id]);
+    } catch {
+      /* Fehlermeldung wird bereits per alert angezeigt; Fenster bleibt offen */
     }
-    setEditingItem(null);
-    setIsBulkEntry(false);
-    setSelectedHorseIds([horse.id]);
   };
 
   const toggleHorseSelection = (id: string) => {

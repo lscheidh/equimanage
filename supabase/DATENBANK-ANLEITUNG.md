@@ -250,6 +250,10 @@ Damit Besitzer Anfragen an Tierärzte senden und Tierärzte diese im Dashboard e
 
 **KI-Funktionen (Claude):** Edge Functions `ai-extract-horse` und `ai-analyze-health` für Pferdedaten-Extraktion und Gesundheitsanalyse. Keys nur serverseitig: `supabase secrets set CLAUDE_API_KEY=dein-key`. Deployment: `npx supabase functions deploy ai-extract-horse ai-analyze-health`.
 
-**Impf-Fälligkeits-Mails:** Wenn ein Pferd fällig oder kritisch wird, wird dem Besitzer eine E-Mail mit Übersicht aller Fälligkeiten gesendet. Migration **`008_vaccination_due_notifications.sql`** anlegen. Edge Function deployen: `supabase functions deploy check-vaccination-due`. Für den E-Mail-Versand muss in der Funktion ein Provider (z. B. Resend) eingebunden werden.
+**Impf-Fälligkeits-Mails:** Wenn ein Pferd fällig oder kritisch wird, wird dem Besitzer eine E-Mail mit Übersicht aller Fälligkeiten gesendet. Migration **`008_vaccination_due_notifications.sql`** anlegen. Edge Function deployen: `supabase functions deploy check-vaccination-due`. E-Mail-Versand über **SendGrid**: `supabase secrets set SENDGRID_API_KEY=SG....` und `supabase secrets set SENDGRID_FROM_EMAIL="EquiManage <noreply@equimanage.de>"` (Absender in SendGrid verifizieren). EU: `SENDGRID_API_URL=https://api.eu.sendgrid.com`.
+
+**Hufschmied-Fälligkeits-Mails:** Analog für Hufschmied-Termine (>42 Tage fällig, >56 Tage kritisch). Migration **`009_hoof_due_notifications.sql`**. Edge Function: `supabase functions deploy check-hoof-due`. E-Mail über SendGrid (gleiche Secrets wie Impf-Mails).
+
+**Täglicher Cron:** Für automatische Prüfung aller Besitzer (auch ohne Login): Edge Function `run-daily-due-checks` deployen. `supabase secrets set CRON_SECRET=...` setzen. Cron einrichten – siehe Migration **`010_cron_daily_due_checks.sql`** (pg_cron oder externer Cron).
 
 **Rimondo-Import:** Beim Anlegen/Bearbeiten eines Pferdes kann eine Rimondo-Profil-URL eingefügt und „Von Rimondo laden“ genutzt werden. Die Edge Function `rimondo-fetch` muss deployt sein: `npx supabase functions deploy rimondo-fetch`. Sie holt die Rimondo-Seite und liefert Name, Rasse, Geburtsjahr, Geschlecht, Zuchtverband, ISO-Nr., FEI-Nr. zurück. In `supabase/config.toml` ist `verify_jwt = false` gesetzt, damit der Aufruf auch ohne Anmeldung funktioniert (sonst HTTP 401). Nach Änderung an `config.toml` die Funktion erneut deployen.

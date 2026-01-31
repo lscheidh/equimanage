@@ -224,6 +224,9 @@ const App: React.FC = () => {
       if (p.notify_vaccination && list.length > 0) {
         import('./services/vaccinationDueNotifyService').then((m) => m.checkAndNotifyVaccinationDue(p, list)).catch(() => {});
       }
+      if (p.notify_hoof && list.length > 0) {
+        import('./services/hoofDueNotifyService').then((m) => m.checkAndNotifyHoofDue(p, list)).catch(() => {});
+      }
     } else {
       setHorses([]);
     }
@@ -360,6 +363,7 @@ const App: React.FC = () => {
       if (selectedHorse?.id === h.id) setSelectedHorse(updated);
     } catch (e) {
       alert(mapHorseError(e, 'update'));
+      throw e;
     }
   };
 
@@ -371,6 +375,7 @@ const App: React.FC = () => {
 
   const handleBulkAddVaccination = async (horseIds: string[], vacc: Omit<Vaccination, 'id'>) => {
     const v = { ...vacc, id: crypto.randomUUID() };
+    const prevHorses = horses;
     const updated: Horse[] = [];
     setHorses(prev => prev.map(h => {
       if (!horseIds.includes(h.id)) return h;
@@ -378,34 +383,52 @@ const App: React.FC = () => {
       updated.push(next);
       return next;
     }));
-    for (const h of updated) {
-      await persistHorse(h);
-      if (selectedHorse?.id === h.id) setSelectedHorse(h);
+    try {
+      for (const h of updated) {
+        await persistHorse(h);
+        if (selectedHorse?.id === h.id) setSelectedHorse(h);
+      }
+    } catch {
+      setHorses(prevHorses);
+      throw new Error('Speichern fehlgeschlagen.');
     }
   };
 
   const handleUpdateVaccination = async (horseId: string, updatedVacc: Vaccination) => {
     let u: Horse | null = null;
+    const prevHorses = horses;
     setHorses(prev => prev.map(h => {
       if (h.id !== horseId) return h;
       u = { ...h, vaccinations: h.vaccinations.map(v => v.id === updatedVacc.id ? updatedVacc : v) };
       return u;
     }));
-    if (u) { await persistHorse(u); if (selectedHorse?.id === horseId) setSelectedHorse(u); }
+    try {
+      if (u) { await persistHorse(u); if (selectedHorse?.id === horseId) setSelectedHorse(u); }
+    } catch {
+      setHorses(prevHorses);
+      throw new Error('Speichern fehlgeschlagen.');
+    }
   };
 
   const handleDeleteVaccination = async (horseId: string, vaccId: string) => {
     let u: Horse | null = null;
+    const prevHorses = horses;
     setHorses(prev => prev.map(h => {
       if (h.id !== horseId) return h;
       u = { ...h, vaccinations: h.vaccinations.filter(v => v.id !== vaccId) };
       return u;
     }));
-    if (u) { await persistHorse(u); if (selectedHorse?.id === horseId) setSelectedHorse(u); }
+    try {
+      if (u) { await persistHorse(u); if (selectedHorse?.id === horseId) setSelectedHorse(u); }
+    } catch {
+      setHorses(prevHorses);
+      throw new Error('Löschen fehlgeschlagen.');
+    }
   };
 
   const handleBulkAddService = async (horseIds: string[], service: Omit<ServiceRecord, 'id'>) => {
     const s = { ...service, id: crypto.randomUUID() };
+    const prevHorses = horses;
     const updated: Horse[] = [];
     setHorses(prev => prev.map(h => {
       if (!horseIds.includes(h.id)) return h;
@@ -413,30 +436,47 @@ const App: React.FC = () => {
       updated.push(next);
       return next;
     }));
-    for (const h of updated) {
-      await persistHorse(h);
-      if (selectedHorse?.id === h.id) setSelectedHorse(h);
+    try {
+      for (const h of updated) {
+        await persistHorse(h);
+        if (selectedHorse?.id === h.id) setSelectedHorse(h);
+      }
+    } catch {
+      setHorses(prevHorses);
+      throw new Error('Speichern fehlgeschlagen.');
     }
   };
 
   const handleUpdateService = async (horseId: string, updatedService: ServiceRecord) => {
     let u: Horse | null = null;
+    const prevHorses = horses;
     setHorses(prev => prev.map(h => {
       if (h.id !== horseId) return h;
       u = { ...h, serviceHistory: h.serviceHistory.map(x => x.id === updatedService.id ? updatedService : x) };
       return u;
     }));
-    if (u) { await persistHorse(u); if (selectedHorse?.id === horseId) setSelectedHorse(u); }
+    try {
+      if (u) { await persistHorse(u); if (selectedHorse?.id === horseId) setSelectedHorse(u); }
+    } catch {
+      setHorses(prevHorses);
+      throw new Error('Speichern fehlgeschlagen.');
+    }
   };
 
   const handleDeleteService = async (horseId: string, serviceId: string) => {
     let u: Horse | null = null;
+    const prevHorses = horses;
     setHorses(prev => prev.map(h => {
       if (h.id !== horseId) return h;
       u = { ...h, serviceHistory: h.serviceHistory.filter(x => x.id !== serviceId) };
       return u;
     }));
-    if (u) { await persistHorse(u); if (selectedHorse?.id === horseId) setSelectedHorse(u); }
+    try {
+      if (u) { await persistHorse(u); if (selectedHorse?.id === horseId) setSelectedHorse(u); }
+    } catch {
+      setHorses(prevHorses);
+      throw new Error('Löschen fehlgeschlagen.');
+    }
   };
 
   const handleConfirmAppointmentRequest = useCallback(async (req: appointmentRequestService.AppointmentRequestRow) => {
