@@ -184,6 +184,20 @@ Pfade: `{owner_id}/{horse_id}_{uuid}.{ext}` bzw. `{owner_id}/new_{uuid}.{ext}` v
 - **Authentication**: E-Mail/Passwort-Login ist standardmäßig aktiv (Provider „Email“).
 - **Settings → API**: `Project URL` und `anon` Key für `.env` notieren.
 
+### Passwort zurücksetzen („Passwort vergessen?“)
+
+Die App bietet unter **Anmelden** einen Link „Passwort vergessen?". Der Nutzer gibt seine E-Mail ein und erhält von Supabase eine E-Mail mit einem Link zum Zurücksetzen.
+
+**Supabase-Konfiguration:**
+
+1. **Supabase Dashboard** → dein Projekt → **Authentication** → **URL Configuration**
+2. Unter **Redirect URLs** die App-URL hinzufügen:
+   - Entwicklung: `http://localhost:5173`
+   - Produktion: z. B. `https://deine-app.vercel.app`
+3. **Site URL** sollte auf die Haupt-URL der App zeigen (z. B. `https://deine-app.vercel.app`).
+
+Der Nutzer klickt in der E-Mail auf den Link, wird zur App weitergeleitet und kann dort ein neues Passwort vergeben.
+
 ---
 
 ## 5. Umgebungsvariablen im Projekt
@@ -231,5 +245,7 @@ Damit Besitzer Anfragen an Tierärzte senden und Tierärzte diese im Dashboard e
 **E-Mail an Tierarzt:** Die App ruft nach „Anfrage senden“ optional die Edge Function `notify-vet-request` auf. Stub liegt unter `supabase/functions/notify-vet-request/`. Deployment: `supabase functions deploy notify-vet-request`. Dort kann z. B. E-Mail-Versand (Resend o. Ä.) ergänzt werden.
 
 **Dual-Rolle (Besitzer + Tierarzt):** Migration **`007_profiles_practice_zip_dual_role.sql`** fügt `practice_zip` hinzu und eine RLS-Policy, damit auch Profile mit `practice_name` (duale Rolle) in der Tierarztsuche erscheinen.
+
+**Impf-Fälligkeits-Mails:** Wenn ein Pferd fällig oder kritisch wird, wird dem Besitzer eine E-Mail mit Übersicht aller Fälligkeiten gesendet. Migration **`008_vaccination_due_notifications.sql`** anlegen. Edge Function deployen: `supabase functions deploy check-vaccination-due`. Für den E-Mail-Versand muss in der Funktion ein Provider (z. B. Resend) eingebunden werden.
 
 **Rimondo-Import:** Beim Anlegen/Bearbeiten eines Pferdes kann eine Rimondo-Profil-URL eingefügt und „Von Rimondo laden“ genutzt werden. Die Edge Function `rimondo-fetch` muss deployt sein: `npx supabase functions deploy rimondo-fetch`. Sie holt die Rimondo-Seite und liefert Name, Rasse, Geburtsjahr, Geschlecht, Zuchtverband, ISO-Nr., FEI-Nr. zurück. In `supabase/config.toml` ist `verify_jwt = false` gesetzt, damit der Aufruf auch ohne Anmeldung funktioniert (sonst HTTP 401). Nach Änderung an `config.toml` die Funktion erneut deployen.
