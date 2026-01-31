@@ -4,3 +4,7 @@
 [functions.rimondo-fetch]
 # Ohne gültigen JWT erreichbar – Rimondo-Import funktioniert auch vor der Anmeldung
 verify_jwt = false
+
+[functions.run-daily-due-checks]
+# Cron (cron-job.org etc.) sendet kein JWT, sondern x-cron-secret – Validierung in der Funktion
+verify_jwt = false

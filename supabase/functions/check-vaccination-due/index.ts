@@ -4,7 +4,33 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
+const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret' };
+
+async function sendEmail(to: string, subject: string, html: string, fromStr: string): Promise<boolean> {
+  const m = fromStr.match(/^(.+?)\s*<(.+?)>$/);
+  const fromEmail = m ? m[2].trim() : fromStr.trim();
+  const fromName = m ? m[1].trim() : 'EquiManage';
+
+  const sendgridKey = Deno.env.get('SENDGRID_API_KEY');
+  if (!sendgridKey) return false;
+
+  const base = Deno.env.get('SENDGRID_API_URL') || 'https://api.sendgrid.com';
+  const res = await fetch(`${base.replace(/\/$/, '')}/v3/mail/send`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${sendgridKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: to }], subject }],
+      from: { email: fromEmail, name: fromName },
+      content: [{ type: 'text/html', value: html }],
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    console.error('SendGrid API error:', res.status, err);
+    throw new Error(`E-Mail-Versand fehlgeschlagen: ${res.status}`);
+  }
+  return true;
+}
 
 interface DueItem {
   horseId: string;
@@ -20,25 +46,41 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { headers: { 'Content-Type': 'application/json', ...cors }, status: 401 });
-    }
+    const cronSecret = req.headers.get('x-cron-secret');
+    const isCron = !!cronSecret && cronSecret === Deno.env.get('CRON_SECRET');
+
+    let ownerId: string;
+    let ownerEmail: string;
+    let ownerName: string;
+    let items: DueItem[];
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const jwt = authHeader.replace('Bearer ', '');
-    const { data: { user } } = await supabase.auth.getUser(jwt);
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { headers: { 'Content-Type': 'application/json', ...cors }, status: 401 });
-    }
-
-    const body = (await req.json()) as { ownerId?: string; ownerEmail?: string; ownerName?: string; items?: DueItem[] };
-    const { ownerId, ownerEmail, ownerName, items = [] } = body;
-
-    if (ownerId !== user.id) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), { headers: { 'Content-Type': 'application/json', ...cors }, status: 403 });
+    if (isCron) {
+      const body = (await req.json()) as { ownerId?: string; ownerEmail?: string; ownerName?: string; items?: DueItem[] };
+      ownerId = body.ownerId ?? '';
+      ownerEmail = body.ownerEmail ?? '';
+      ownerName = body.ownerName ?? '';
+      items = body.items ?? [];
+    } else {
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { headers: { 'Content-Type': 'application/json', ...cors }, status: 401 });
+      }
+      const jwt = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabase.auth.getUser(jwt);
+      if (!user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { headers: { 'Content-Type': 'application/json', ...cors }, status: 401 });
+      }
+      const body = (await req.json()) as { ownerId?: string; ownerEmail?: string; ownerName?: string; items?: DueItem[] };
+      ownerId = body.ownerId ?? '';
+      ownerEmail = body.ownerEmail ?? '';
+      ownerName = body.ownerName ?? '';
+      items = body.items ?? [];
+      if (ownerId !== user.id) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), { headers: { 'Content-Type': 'application/json', ...cors }, status: 403 });
+      }
     }
 
     if (!ownerId || !ownerEmail || !items.length) {
@@ -78,9 +120,11 @@ Deno.serve(async (req) => {
       <p>– EquiManage</p>
     `;
 
-    // TODO: E-Mail senden (z. B. Resend)
-    // await fetch('https://api.resend.com/emails', { method: 'POST', ... });
-    console.log('check-vaccination-due would send', { to: ownerEmail, subject, newCount: newItems.length });
+    const fromStr = Deno.env.get('SENDGRID_FROM_EMAIL') || 'EquiManage <noreply@equimanage.de>';
+    const sent = await sendEmail(ownerEmail, subject, html, fromStr);
+    if (!sent) {
+      console.log('check-vaccination-due: SENDGRID_API_KEY nicht gesetzt, E-Mail übersprungen', { to: ownerEmail, subject });
+    }
 
     for (const item of newItems) {
       await supabase.from('vaccination_due_notifications').insert({
