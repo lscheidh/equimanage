@@ -455,7 +455,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               </div>
             </div>
           )}
-          <form onSubmit={handleSaveHorse} className="bg-white rounded-2xl sm:rounded-[3rem] p-4 sm:p-10 max-w-2xl w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200 space-y-4 sm:space-y-6 custom-scrollbar my-2 sm:my-auto modal-content">
+          <form onSubmit={handleSaveHorse} className="modal-form bg-white rounded-2xl sm:rounded-[3rem] p-3 sm:p-10 max-w-2xl w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200 space-y-3 sm:space-y-6 custom-scrollbar my-2 sm:my-auto modal-content">
             <h4 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight border-b border-slate-100 pb-4 sm:pb-6">Pferdedaten bearbeiten</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
               <div className="col-span-2 space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename</label><input type="text" value={editedHorse.name} onChange={e => setEditedHorse({...editedHorse, name: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-base" /></div>
@@ -530,7 +530,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
       {/* Entry Modal (Impfung/Behandlung) */}
       {(showVaccModal || showServiceModal) && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-4 overflow-y-auto modal-overlay">
-          <form onSubmit={handleEntrySubmit} className="bg-white rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-10 max-w-lg w-full max-w-[min(100vw-1rem,32rem)] shadow-2xl animate-in zoom-in-95 duration-200 space-y-4 sm:space-y-6 max-h-[calc(100dvh-2rem)] overflow-y-auto custom-scrollbar my-2 sm:my-auto modal-content">
+          <form onSubmit={handleEntrySubmit} className="modal-form bg-white rounded-2xl sm:rounded-[2.5rem] p-3 sm:p-10 max-w-lg w-full max-w-[min(100vw-1rem,32rem)] shadow-2xl animate-in zoom-in-95 duration-200 space-y-3 sm:space-y-6 max-h-[calc(100dvh-2rem)] overflow-y-auto custom-scrollbar my-2 sm:my-auto modal-content">
             <h4 className="text-2xl font-black text-slate-900">
               {showVaccModal && editingItem && (editingItem as Vaccination).status === 'planned'
                 ? 'Impfung aktivieren'

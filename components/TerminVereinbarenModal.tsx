@@ -305,7 +305,7 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-4 overflow-y-auto modal-overlay" onClick={onClose} role="presentation">
       <div
-        className="bg-white rounded-2xl sm:rounded-[2.5rem] w-full max-w-[min(100vw-1rem,42rem)] max-h-[calc(100dvh-2rem)] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col modal-content"
+        className="modal-form bg-white rounded-2xl sm:rounded-[2.5rem] w-full max-w-[min(100vw-1rem,42rem)] max-h-[calc(100dvh-2rem)] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col modal-content"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-100 px-4 sm:px-8 py-4 sm:py-5">
@@ -315,7 +315,7 @@ export const TerminVereinbarenModal: React.FC<TerminVereinbarenModalProps> = ({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5 sm:space-y-6 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-8 space-y-4 sm:space-y-6 custom-scrollbar">
           <section>
             <p className="text-sm text-slate-600 mb-3">
               Wähle die Pferde, die beim angefragten Termin geimpft werden sollen (Status fällig bzw. kritisch). Pro Pferd kannst du Impfkategorien bzw. fällige Impfungen einzeln auswählen.

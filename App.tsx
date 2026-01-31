@@ -1115,16 +1115,16 @@ const App: React.FC = () => {
               </div>
             </div>
           )}
-          <form onSubmit={handleCreateHorse} className="bg-white rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-10 w-full max-w-[min(100vw-1rem,36rem)] shadow-2xl animate-in zoom-in-95 duration-200 space-y-4 sm:space-y-6 my-2 sm:my-auto modal-content max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 border-b border-slate-100 pb-4 sm:pb-6">
-              <h4 className="text-xl sm:text-2xl font-black tracking-tight">Neues Pferd</h4>
-              <div className="flex bg-slate-100 p-1.5 rounded-2xl shrink-0">
-                <button type="button" onClick={() => setAddMode('manual')} className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${addMode === 'manual' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}>Manuell</button>
-                <button type="button" onClick={() => setAddMode('transfer')} className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${addMode === 'transfer' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}>Transfer-Code</button>
+          <form onSubmit={handleCreateHorse} className="modal-form bg-white rounded-2xl sm:rounded-[2.5rem] p-3 sm:p-10 w-full max-w-[min(100vw-1rem,36rem)] shadow-2xl animate-in zoom-in-95 duration-200 space-y-3 sm:space-y-6 my-2 sm:my-auto modal-content max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-3 border-b border-slate-100 pb-3 sm:pb-6">
+              <h4 className="text-lg sm:text-2xl font-black tracking-tight">Neues Pferd</h4>
+              <div className="flex bg-slate-100 p-1 rounded-xl sm:rounded-2xl shrink-0">
+                <button type="button" onClick={() => setAddMode('manual')} className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition-all ${addMode === 'manual' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}>Manuell</button>
+                <button type="button" onClick={() => setAddMode('transfer')} className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition-all ${addMode === 'transfer' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}>Transfer-Code</button>
               </div>
             </div>
             {addMode === 'manual' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5 max-h-[50vh] sm:max-h-[50vh] overflow-y-auto pr-1 sm:pr-3 custom-scrollbar">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-5 max-h-[50vh] sm:max-h-[50vh] overflow-y-auto pr-1 sm:pr-3 custom-scrollbar">
                 <div className="col-span-2 sm:col-span-2 space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename *</label><input required type="text" value={newHorseData.name} onChange={e => setNewHorseData({...newHorseData, name: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-base" placeholder="Name" /></div>
                 <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN) *</label><input required type="text" value={newHorseData.isoNr} onChange={e => setNewHorseData({...newHorseData, isoNr: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" placeholder="z.B. DE..." /></div>
                 <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FEI-Nr.</label><input type="text" value={newHorseData.feiNr} onChange={e => setNewHorseData({...newHorseData, feiNr: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" placeholder="optional" /></div>
