@@ -433,7 +433,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
 
       {/* Full Edit Horse Mask (Modal) */}
       {showEditHorseMask && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md z-[110] flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md z-[110] flex items-center justify-center p-3 sm:p-4 overflow-y-auto modal-overlay">
           {rimondoPreviewData && (
             <div className="fixed inset-0 z-[111] flex items-center justify-center p-4 bg-slate-900/60">
               <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -455,12 +455,12 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               </div>
             </div>
           )}
-          <form onSubmit={handleSaveHorse} className="bg-white rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-10 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200 space-y-6 custom-scrollbar my-auto">
-            <h4 className="text-3xl font-black text-slate-900 tracking-tight border-b border-slate-100 pb-6">Pferdedaten bearbeiten</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-              <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename</label><input type="text" value={editedHorse.name} onChange={e => setEditedHorse({...editedHorse, name: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold" /></div>
-              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN)</label><input type="text" value={editedHorse.isoNr} onChange={e => setEditedHorse({...editedHorse, isoNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
-              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FEI-Nr.</label><input type="text" value={editedHorse.feiNr} onChange={e => setEditedHorse({...editedHorse, feiNr: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
+          <form onSubmit={handleSaveHorse} className="bg-white rounded-2xl sm:rounded-[3rem] p-4 sm:p-10 max-w-2xl w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200 space-y-4 sm:space-y-6 custom-scrollbar my-2 sm:my-auto modal-content">
+            <h4 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight border-b border-slate-100 pb-4 sm:pb-6">Pferdedaten bearbeiten</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
+              <div className="col-span-2 space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename</label><input type="text" value={editedHorse.name} onChange={e => setEditedHorse({...editedHorse, name: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-base" /></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN)</label><input type="text" value={editedHorse.isoNr} onChange={e => setEditedHorse({...editedHorse, isoNr: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" /></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FEI-Nr.</label><input type="text" value={editedHorse.feiNr} onChange={e => setEditedHorse({...editedHorse, feiNr: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" /></div>
               <div className="col-span-2 space-y-2">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Profilbild</label>
                 <div className="flex items-center gap-3 flex-wrap">
@@ -490,16 +490,16 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                   {rimondoError && <p className="text-sm text-rose-600">{rimondoError}</p>}
                 </div>
               </div>
-              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr</label><input type="number" value={editedHorse.birthYear} onChange={e => setEditedHorse({...editedHorse, birthYear: parseInt(e.target.value, 10) || new Date().getFullYear()})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
-              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zuchtverband</label><input type="text" value={editedHorse.breedingAssociation} onChange={e => setEditedHorse({...editedHorse, breedingAssociation: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
-              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Rasse</label><input type="text" value={editedHorse.breed} onChange={e => setEditedHorse({...editedHorse, breed: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
-              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Chip-ID</label><input type="text" value={editedHorse.chipId} onChange={e => setEditedHorse({...editedHorse, chipId: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" /></div>
-              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geschlecht</label><select value={editedHorse.gender ?? ''} onChange={e => setEditedHorse({...editedHorse, gender: (e.target.value || null) as Horse['gender']})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold"><option value="">—</option><option>Wallach</option><option>Stute</option><option>Hengst</option></select></div>
-              <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Gewicht (kg)</label><input type="number" value={editedHorse.weightKg ?? ''} onChange={e => { const v = e.target.value; setEditedHorse({...editedHorse, weightKg: v === '' ? null : parseInt(v, 10) || null}); }} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="—" /></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geburtsjahr</label><input type="number" value={editedHorse.birthYear} onChange={e => setEditedHorse({...editedHorse, birthYear: parseInt(e.target.value, 10) || new Date().getFullYear()})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" /></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Zuchtverband</label><input type="text" value={editedHorse.breedingAssociation} onChange={e => setEditedHorse({...editedHorse, breedingAssociation: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" /></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Rasse</label><input type="text" value={editedHorse.breed} onChange={e => setEditedHorse({...editedHorse, breed: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" /></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Chip-ID</label><input type="text" value={editedHorse.chipId} onChange={e => setEditedHorse({...editedHorse, chipId: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" /></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geschlecht</label><select value={editedHorse.gender ?? ''} onChange={e => setEditedHorse({...editedHorse, gender: (e.target.value || null) as Horse['gender']})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none font-bold text-base"><option value="">—</option><option>Wallach</option><option>Stute</option><option>Hengst</option></select></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Gewicht (kg)</label><input type="number" value={editedHorse.weightKg ?? ''} onChange={e => { const v = e.target.value; setEditedHorse({...editedHorse, weightKg: v === '' ? null : parseInt(v, 10) || null}); }} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" placeholder="—" /></div>
             </div>
-            <div className="flex gap-4 pt-6 border-t border-slate-100">
-              <button type="button" onClick={() => { setEditedHorse(horse); setShowEditHorseMask(false); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-black rounded-2xl">Abbrechen</button>
-              <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100">Daten speichern</button>
+            <div className="flex gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-slate-100">
+              <button type="button" onClick={() => { setEditedHorse(horse); setShowEditHorseMask(false); }} className="flex-1 py-3 sm:py-4 bg-slate-100 text-slate-700 font-black rounded-xl sm:rounded-2xl text-sm sm:text-base">Abbrechen</button>
+              <button type="submit" className="flex-1 py-3 sm:py-4 bg-indigo-600 text-white font-black rounded-xl sm:rounded-2xl shadow-xl shadow-indigo-100 text-sm sm:text-base">Daten speichern</button>
             </div>
           </form>
         </div>
@@ -507,8 +507,8 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
 
       {/* Lösch-Bestätigung */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md z-[105] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-6">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md z-[105] flex items-center justify-center p-4 modal-overlay">
+          <div className="bg-white rounded-2xl sm:rounded-[2.5rem] p-6 sm:p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-4 sm:space-y-6 modal-content">
             <h4 className="text-xl font-black text-slate-900">
               {showDeleteConfirm === 'horse' && 'Pferd löschen?'}
               {showDeleteConfirm === 'vacc' && 'Impfung löschen?'}
@@ -529,8 +529,8 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
 
       {/* Entry Modal (Impfung/Behandlung) */}
       {(showVaccModal || showServiceModal) && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
-          <form onSubmit={handleEntrySubmit} className="bg-white rounded-2xl sm:rounded-[2.5rem] p-5 sm:p-10 max-w-lg w-full max-w-[min(100vw-2rem,32rem)] shadow-2xl animate-in zoom-in-95 duration-200 space-y-5 sm:space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar my-auto">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-4 overflow-y-auto modal-overlay">
+          <form onSubmit={handleEntrySubmit} className="bg-white rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-10 max-w-lg w-full max-w-[min(100vw-1rem,32rem)] shadow-2xl animate-in zoom-in-95 duration-200 space-y-4 sm:space-y-6 max-h-[calc(100dvh-2rem)] overflow-y-auto custom-scrollbar my-2 sm:my-auto modal-content">
             <h4 className="text-2xl font-black text-slate-900">
               {showVaccModal && editingItem && (editingItem as Vaccination).status === 'planned'
                 ? 'Impfung aktivieren'
@@ -575,9 +575,9 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                     ))}
                   </div>
                 ) : showVaccModal && editingItem ? (
-                  <input readOnly value={entryData.type} className="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-700" />
+                  <input readOnly value={entryData.type} className="w-full p-3 sm:p-4 bg-slate-100 border border-slate-200 rounded-xl sm:rounded-2xl font-bold text-slate-700 text-base" />
                 ) : (
-                  <select value={entryData.type} onChange={e => setEntryData({...entryData, type: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold">
+                  <select value={entryData.type} onChange={e => setEntryData({...entryData, type: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none font-bold text-base">
                     <option>Hufschmied</option><option>Entwurmung</option><option>Zahnarzt</option><option>Physio</option><option>Sonstiges</option>
                   </select>
                 )}
@@ -599,12 +599,12 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Datum</label>
-                <input type="date" max={todayStr()} value={entryData.date} onChange={e => setEntryData({...entryData, date: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" required title="Keine zukünftigen Daten" />
+                <input type="date" max={todayStr()} value={entryData.date} onChange={e => setEntryData({...entryData, date: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" required title="Keine zukünftigen Daten" />
                 {entryData.date > todayStr() && <p className="text-xs text-rose-600 mt-1">Nur Datum heute oder in der Vergangenheit.</p>}
               </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">{showVaccModal ? 'Tierarzt' : 'Dienstleister'}</label>
-                  <input type="text" value={showVaccModal ? entryData.vetName : entryData.provider} onChange={e => setEntryData({...entryData, [showVaccModal ? 'vetName' : 'provider']: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Name..." />
+                  <input type="text" value={showVaccModal ? entryData.vetName : entryData.provider} onChange={e => setEntryData({...entryData, [showVaccModal ? 'vetName' : 'provider']: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" placeholder="Name..." />
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {(showVaccModal ? suggestions.vets : suggestions.providers).map(s => (
                       <button key={s} type="button" onClick={() => setEntryData({...entryData, [showVaccModal ? 'vetName' : 'provider']: s})} className="text-[9px] font-black bg-slate-100 text-slate-500 px-3 py-1.5 rounded-full hover:bg-indigo-600 hover:text-white transition-all">{s}</button>

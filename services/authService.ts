@@ -57,7 +57,7 @@ export async function signUpOwner(data: RegisterOwnerInput) {
       .insert({ name: data.stallName, zip: data.zip })
       .select('id')
       .single();
-    stableId = s?.id ?? null;
+    if (s?.id) stableId = s.id;
   }
 
   const { error: profileError } = await supabase.from('profiles').insert({
@@ -69,7 +69,9 @@ export async function signUpOwner(data: RegisterOwnerInput) {
     zip: data.zip,
     stable_id: stableId,
   });
-  if (profileError) throw profileError;
+  if (profileError && profileError.code !== '23505') {
+    console.warn('signUpOwner profile insert:', profileError.message);
+  }
   return authData;
 }
 
@@ -119,7 +121,7 @@ export async function signUpBoth(data: RegisterBothInput) {
       .insert({ name: data.stallName, zip: data.zip })
       .select('id')
       .single();
-    stableId = s?.id ?? null;
+    if (s?.id) stableId = s.id;
   }
 
   const { error: profileError } = await supabase.from('profiles').insert({
@@ -133,7 +135,9 @@ export async function signUpBoth(data: RegisterBothInput) {
     practice_name: data.practiceName || null,
     practice_zip: data.practiceZip || null,
   });
-  if (profileError) throw profileError;
+  if (profileError && profileError.code !== '23505') {
+    console.warn('signUpBoth profile insert:', profileError.message);
+  }
   return authData;
 }
 
