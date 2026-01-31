@@ -1,5 +1,6 @@
 # Supabase-Projekt-Konfiguration
 
+# KI-Funktionen benötigen CLAUDE_API_KEY als Secret (supabase secrets set CLAUDE_API_KEY=...)
 [functions.rimondo-fetch]
 # Ohne gültigen JWT erreichbar – Rimondo-Import funktioniert auch vor der Anmeldung
 verify_jwt = false

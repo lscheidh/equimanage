@@ -198,6 +198,8 @@ Die App bietet unter **Anmelden** einen Link „Passwort vergessen?". Der Nutzer
 
 Der Nutzer klickt in der E-Mail auf den Link, wird zur App weitergeleitet und kann dort ein neues Passwort vergeben.
 
+**Passwort-Stärke:** Die App prüft mind. 8 Zeichen, Groß-/Kleinbuchstaben, Ziffer, Sonderzeichen. In **Authentication → Settings → Password** die Minimum Length auf 8 setzen, damit Supabase die Regeln unterstützt.
+
 ---
 
 ## 5. Umgebungsvariablen im Projekt
@@ -209,7 +211,7 @@ VITE_SUPABASE_URL=https://dein-projekt.supabase.co
 VITE_SUPABASE_ANON_KEY=dein-anon-key
 ```
 
-Die Werte aus **Supabase Dashboard → Settings → API** übernehmen. Optional können bestehende Keys (z. B. `GEMINI_API_KEY`, `CLAUDE_API_KEY`) dort ebenfalls stehen.
+Die Werte aus **Supabase Dashboard → Settings → API** übernehmen. **KI-Keys** (z. B. `CLAUDE_API_KEY`) werden **nur serverseitig** als Supabase-Secrets gesetzt: `supabase secrets set CLAUDE_API_KEY=dein-key` – sie gehören **nicht** in `.env.local`. Die Edge Functions `ai-extract-horse` und `ai-analyze-health` verwenden den Key.
 
 ---
 
@@ -245,6 +247,8 @@ Damit Besitzer Anfragen an Tierärzte senden und Tierärzte diese im Dashboard e
 **E-Mail an Tierarzt:** Die App ruft nach „Anfrage senden“ optional die Edge Function `notify-vet-request` auf. Stub liegt unter `supabase/functions/notify-vet-request/`. Deployment: `supabase functions deploy notify-vet-request`. Dort kann z. B. E-Mail-Versand (Resend o. Ä.) ergänzt werden.
 
 **Dual-Rolle (Besitzer + Tierarzt):** Migration **`007_profiles_practice_zip_dual_role.sql`** fügt `practice_zip` hinzu und eine RLS-Policy, damit auch Profile mit `practice_name` (duale Rolle) in der Tierarztsuche erscheinen.
+
+**KI-Funktionen (Claude):** Edge Functions `ai-extract-horse` und `ai-analyze-health` für Pferdedaten-Extraktion und Gesundheitsanalyse. Keys nur serverseitig: `supabase secrets set CLAUDE_API_KEY=dein-key`. Deployment: `npx supabase functions deploy ai-extract-horse ai-analyze-health`.
 
 **Impf-Fälligkeits-Mails:** Wenn ein Pferd fällig oder kritisch wird, wird dem Besitzer eine E-Mail mit Übersicht aller Fälligkeiten gesendet. Migration **`008_vaccination_due_notifications.sql`** anlegen. Edge Function deployen: `supabase functions deploy check-vaccination-due`. Für den E-Mail-Versand muss in der Funktion ein Provider (z. B. Resend) eingebunden werden.
 

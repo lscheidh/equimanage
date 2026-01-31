@@ -165,9 +165,12 @@ export async function signOut() {
   if (error) throw error;
 }
 
+/** Validiert die Session serverseitig via getUser. */
 export async function getSession() {
-  const { data } = await supabase.auth.getSession();
-  return data.session;
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return null;
+  const { data: sessionData } = await supabase.auth.getSession();
+  return sessionData.session;
 }
 
 export async function getCurrentUserEmail(): Promise<string | null> {
@@ -228,10 +231,10 @@ async function ensureProfileFromMetadata(userId: string, meta: Record<string, un
 }
 
 export async function getProfile(): Promise<Profile | null> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return null;
-  const uid = session.user.id;
-  const meta = (session.user.user_metadata || {}) as Record<string, unknown>;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const uid = user.id;
+  const meta = (user.user_metadata || {}) as Record<string, unknown>;
 
   let { data, error } = await supabase
     .from('profiles')
