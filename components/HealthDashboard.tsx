@@ -53,36 +53,25 @@ export const HealthDashboard: React.FC<HealthDashboardProps> = ({
           </div>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3">
-           <div className="flex bg-slate-200 p-1 rounded-lg mr-2">
-             <button 
-               onClick={() => setViewMode('grid')}
-               className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-             >
+        <div className="flex flex-col md:flex-row md:flex-wrap items-stretch md:items-center gap-3">
+           <div className="flex gap-2 flex-1 md:flex-initial">
+             <button onClick={onTerminVereinbaren} className="flex-1 md:flex-initial px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 flex items-center justify-center gap-2 transition-colors">
+               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+               Termin vereinbaren
+             </button>
+             <button onClick={onAddNewHorse} className="flex-1 md:flex-initial px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 flex items-center justify-center gap-2 shadow-sm transition-all hover:shadow-md">
+               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+               Neues Pferd
+             </button>
+           </div>
+           <div className="flex bg-slate-200 p-1 rounded-lg self-center md:self-auto">
+             <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`} title="Rasteransicht">
                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
              </button>
-             <button 
-               onClick={() => setViewMode('list')}
-               className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-             >
+             <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`} title="Listenansicht">
                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
              </button>
            </div>
-
-           <button 
-            onClick={onTerminVereinbaren}
-            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 flex items-center gap-2 transition-colors"
-           >
-             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-             Termin vereinbaren
-           </button>
-           <button 
-            onClick={onAddNewHorse}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 flex items-center gap-2 shadow-sm transition-all hover:shadow-md"
-           >
-             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-             Neues Pferd
-           </button>
         </div>
       </header>
 
@@ -120,7 +109,8 @@ export const HealthDashboard: React.FC<HealthDashboardProps> = ({
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <>
+        <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
               <tr>
@@ -170,6 +160,24 @@ export const HealthDashboard: React.FC<HealthDashboardProps> = ({
             </tbody>
           </table>
         </div>
+        <div className="md:hidden space-y-3">
+          {filteredHorses.map(horse => {
+            const compliance = checkVaccinationCompliance(horse);
+            return (
+              <div key={horse.id} onClick={() => onSelectHorse(horse)} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-50">
+                <img src={horse.image} className="w-12 h-12 rounded-full object-cover" alt={horse.name} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-slate-900">{horse.name}</p>
+                  <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white ${getStatusColor(compliance.status)}`}>{getStatusLabel(compliance.status)}</span>
+                  {compliance.dueItems.length > 0 && <p className="text-xs text-slate-500 mt-1 truncate">{compliance.dueItems[0].message}</p>}
+                  {compliance.status === ComplianceStatus.GREEN && compliance.nextDueInfo && <p className="text-xs text-slate-500 mt-1 truncate">Nächste: {compliance.nextDueInfo.type} {compliance.nextDueInfo.sequence}</p>}
+                </div>
+                <span className="text-slate-400">›</span>
+              </div>
+            );
+          })}
+        </div>
+        </>
       )}
 
       {filteredHorses.length === 0 && (
