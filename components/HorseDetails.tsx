@@ -457,7 +457,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
           )}
           <form onSubmit={handleSaveHorse} className="modal-form bg-white rounded-2xl sm:rounded-[3rem] p-3 sm:p-10 max-w-2xl w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200 space-y-3 sm:space-y-6 custom-scrollbar my-2 sm:my-auto modal-content">
             <h4 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight border-b border-slate-100 pb-4 sm:pb-6">Pferdedaten bearbeiten</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
               <div className="col-span-2 space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename</label><input type="text" value={editedHorse.name} onChange={e => setEditedHorse({...editedHorse, name: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-base" /></div>
               <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN)</label><input type="text" value={editedHorse.isoNr} onChange={e => setEditedHorse({...editedHorse, isoNr: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" /></div>
               <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FEI-Nr.</label><input type="text" value={editedHorse.feiNr} onChange={e => setEditedHorse({...editedHorse, feiNr: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" /></div>
@@ -497,7 +497,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Geschlecht</label><select value={editedHorse.gender ?? ''} onChange={e => setEditedHorse({...editedHorse, gender: (e.target.value || null) as Horse['gender']})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none font-bold text-base"><option value="">—</option><option>Wallach</option><option>Stute</option><option>Hengst</option></select></div>
               <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Gewicht (kg)</label><input type="number" value={editedHorse.weightKg ?? ''} onChange={e => { const v = e.target.value; setEditedHorse({...editedHorse, weightKg: v === '' ? null : parseInt(v, 10) || null}); }} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" placeholder="—" /></div>
             </div>
-            <div className="flex gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-slate-100">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 sm:pt-6 border-t border-slate-100">
               <button type="button" onClick={() => { setEditedHorse(horse); setShowEditHorseMask(false); }} className="flex-1 py-3 sm:py-4 bg-slate-100 text-slate-700 font-black rounded-xl sm:rounded-2xl text-sm sm:text-base">Abbrechen</button>
               <button type="submit" className="flex-1 py-3 sm:py-4 bg-indigo-600 text-white font-black rounded-xl sm:rounded-2xl shadow-xl shadow-indigo-100 text-sm sm:text-base">Daten speichern</button>
             </div>
@@ -519,7 +519,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               {showDeleteConfirm === 'vacc' && 'Diesen Impfeintrag unwiderruflich löschen?'}
               {showDeleteConfirm === 'service' && 'Diesen Behandlungs-Eintrag unwiderruflich löschen?'}
             </p>
-            <div className="flex gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
               <button type="button" onClick={() => { setShowDeleteConfirm(null); setTargetId(null); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-all">Abbrechen</button>
               <button type="button" onClick={confirmDelete} className="flex-1 py-4 bg-rose-600 text-white font-bold rounded-2xl hover:bg-rose-700 transition-all">Löschen</button>
             </div>
@@ -553,7 +553,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
             {isBulkEntry && !editingItem && (
               <div className="p-5 bg-indigo-50 rounded-3xl border border-indigo-100 space-y-4">
                 <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block">Mitbetroffene Pferde wählen</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {allHorses.map(h => (
                     <button key={h.id} type="button" onClick={() => toggleHorseSelection(h.id)} className={`flex items-center gap-2 p-2 rounded-xl border-2 transition-all ${selectedHorseIds.includes(h.id) ? 'bg-white border-indigo-600 shadow-sm' : 'bg-slate-50 border-transparent text-slate-400'}`}>
                       <img src={h.image} className="w-7 h-7 rounded-full object-cover" alt={h.name} /><span className="text-xs font-bold truncate">{h.name}</span>
@@ -588,7 +588,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                   {editingItem && (editingItem as Vaccination).status === 'planned' ? (
                     <input readOnly value={entryData.sequence ?? '—'} className="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-700" />
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {[{ id: 'V1', label: 'V1', hint: '1. Grundimm.' }, { id: 'V2', label: 'V2', hint: '2. Grundimm. (28–70 Tage)' }, { id: 'V3', label: 'V3', hint: '6 Mon. + 21 Tage nach V2' }, { id: 'Booster', label: 'Booster', hint: '6 Mon. + 21 Tage nach V3; oder nur letzter Booster' }].map(seq => (
                         <button key={seq.id} type="button" onClick={() => setEntryData({...entryData, sequence: seq.id as any})} className={`p-3 rounded-2xl border-2 text-left transition-all ${entryData.sequence === seq.id ? 'border-indigo-600 bg-indigo-50 shadow-sm' : 'border-slate-100 bg-white'}`}><p className="font-black text-xs">{seq.label}</p><p className="text-[9px] text-slate-400 leading-tight">{seq.hint}</p></button>
                       ))}
@@ -596,7 +596,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                   )}
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Datum</label>
                 <input type="date" max={todayStr()} value={entryData.date} onChange={e => setEntryData({...entryData, date: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" required title="Keine zukünftigen Daten" />
@@ -613,7 +613,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                 </div>
               </div>
             </div>
-            <div className="flex gap-4 pt-4 border-t border-slate-50">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 border-t border-slate-50">
               <button type="button" onClick={() => { setShowVaccModal(false); setShowServiceModal(false); setEditingItem(null); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-black rounded-2xl">Abbrechen</button>
               <button
                 type="submit"
