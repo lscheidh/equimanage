@@ -147,6 +147,19 @@ export async function signIn(email: string, password: string) {
   return data;
 }
 
+/**
+ * Sendet einen Link zum Zurücksetzen des Passworts an die angegebene E-Mail.
+ * Der Nutzer erhält eine E-Mail von Supabase mit einem Link; beim Klick wird er
+ * zur konfigurierten Redirect-URL geleitet (mit Token), wo ein neues Passwort
+ * gesetzt werden kann.
+ */
+export async function resetPasswordForEmail(email: string, redirectTo?: string): Promise<void> {
+  const base = typeof window !== 'undefined' ? window.location.origin : '';
+  const url = redirectTo ?? (base ? `${base}/` : undefined);
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), url ? { redirectTo: url } : undefined);
+  if (error) throw error;
+}
+
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
@@ -170,6 +183,21 @@ export async function updateAuthEmail(email: string): Promise<void> {
 export async function updateAuthPassword(password: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password });
   if (error) throw error;
+}
+
+/**
+ * Ändert das Passwort nach Verifizierung des alten Passworts.
+ * Prüft zuerst per signIn, ob das alte Passwort stimmt.
+ */
+export async function changePasswordWithVerification(
+  email: string,
+  oldPassword: string,
+  newPassword: string
+): Promise<void> {
+  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: oldPassword });
+  if (signInError) throw signInError;
+  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+  if (updateError) throw updateError;
 }
 
 /**
