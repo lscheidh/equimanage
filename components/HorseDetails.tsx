@@ -608,7 +608,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Datum</label>
-                <input type="date" max={todayStr()} value={entryData.date} onChange={e => setEntryData({...entryData, date: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" required title="Keine zukünftigen Daten" />
+                <input type="date" max={todayStr()} value={entryData.date} onChange={e => setEntryData({...entryData, date: e.target.value})} className="w-full min-w-0 max-w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" required title="Keine zukünftigen Daten" />
                 {entryData.date > todayStr() && <p className="text-xs text-rose-600 mt-1">Nur Datum heute oder in der Vergangenheit.</p>}
               </div>
                 <div className="space-y-1">

@@ -1088,7 +1088,7 @@ const App: React.FC = () => {
             </aside>
           </div>
         ) : (
-          <HealthDashboard horses={horses} onSelectHorse={setSelectedHorse} onAddNewHorse={() => { setHorseError(null); setShowAddHorseModal(true); }} onTerminVereinbaren={() => setShowTerminModal(true)} onGoToDashboard={() => setOwnerSubView('dashboard')} />
+          <HealthDashboard horses={horses} onSelectHorse={setSelectedHorse} onAddNewHorse={() => { setHorseError(null); setNewHorseData(defaultHorseData()); setNewHorseImageFile(null); setShowAddHorseModal(true); }} onTerminVereinbaren={() => setShowTerminModal(true)} onGoToDashboard={() => setOwnerSubView('dashboard')} />
         )}
       </div>
     );
@@ -1269,7 +1269,7 @@ const App: React.FC = () => {
         <TerminVereinbarenModal horses={horses} profile={profile} onClose={() => setShowTerminModal(false)} />
       )}
       {showAddHorseModal && view === UserView.OWNER && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-4 overflow-y-auto modal-overlay" onClick={closeAddHorseModal} role="presentation">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-4 overflow-y-auto modal-overlay" onClick={e => { if (e.target === e.currentTarget) closeAddHorseModal(); }} role="presentation">
           {/* Rimondo-Bestätigung */}
           {rimondoPreviewData && (
             <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/60" onClick={e => e.stopPropagation()}>
@@ -1296,8 +1296,7 @@ const App: React.FC = () => {
             <div className="border-b border-slate-100 pb-3 sm:pb-6">
               <h4 className="text-lg sm:text-2xl font-black tracking-tight">Neues Pferd</h4>
             </div>
-            (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-5 max-h-[50vh] sm:max-h-[50vh] overflow-y-auto pr-1 sm:pr-3 custom-scrollbar">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-5 max-h-[50vh] sm:max-h-[50vh] overflow-y-auto pr-1 sm:pr-3 custom-scrollbar">
                 <div className="col-span-2 sm:col-span-2 space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename *</label><input required type="text" value={newHorseData.name} onChange={e => setNewHorseData({...newHorseData, name: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-base" placeholder="Name" /></div>
                 <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN) *</label><input required type="text" value={newHorseData.isoNr} onChange={e => setNewHorseData({...newHorseData, isoNr: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" placeholder="z.B. DE..." /></div>
                 <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FEI-Nr.</label><input type="text" value={newHorseData.feiNr} onChange={e => setNewHorseData({...newHorseData, feiNr: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" placeholder="optional" /></div>
@@ -1334,7 +1333,6 @@ const App: React.FC = () => {
                   <p className="text-[10px] text-slate-400">Kamera oder Mediathek. Ohne Foto wird ein Platzhalter verwendet.</p>
                 </div>
               </div>
-            )
             {horseError && <p className="text-sm text-rose-600 font-medium">{horseError}</p>}
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 border-t border-slate-50">
               <button type="button" onClick={closeAddHorseModal} className="flex-1 py-3 sm:py-4 bg-slate-100 text-slate-700 font-bold rounded-xl sm:rounded-2xl hover:bg-slate-200 text-sm sm:text-base">Abbrechen</button>

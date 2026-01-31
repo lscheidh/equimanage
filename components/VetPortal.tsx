@@ -153,13 +153,13 @@ export const VetPortal: React.FC<VetPortalProps> = ({ profile }) => {
                 <h3 className="text-sm font-bold text-slate-800 mb-3">Anfrage bearbeiten</h3>
                 <p className="text-xs text-slate-500 mb-3">Bei Annahme: Datum angeben, an dem du zum Besitzer für die Impfung kommst.</p>
                 <div className="flex flex-wrap gap-3 items-end">
-                  <div>
+                  <div className="min-w-0 basis-full sm:basis-auto">
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Termin am</label>
                     <input
                       type="date"
                       value={scheduledDate}
                       onChange={(e) => setScheduledDate(e.target.value)}
-                      className="p-3 border border-slate-200 rounded-xl text-sm"
+                      className="w-full min-w-0 max-w-full p-3 border border-slate-200 rounded-xl text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                   <div className="flex gap-2">
