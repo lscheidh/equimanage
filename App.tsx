@@ -13,6 +13,7 @@ import * as appointmentRequestService from './services/appointmentRequestService
 import * as horseService from './services/horseService';
 import { HORSE_PLACEHOLDER_IMAGE, uploadHorseImage } from './services/horseImageService';
 import * as rimondo from './services/rimondoService';
+import { validatePasswordStrength } from './services/passwordValidation';
 import { supabase } from './services/supabase';
 
 type ProfileSubView = 'stableOverview' | 'settings' | 'dashboard';
@@ -30,11 +31,10 @@ function mapAuthError(err: unknown): string {
   if (s.includes('invalid login') || s.includes('invalid_credentials') || s.includes('invalid grant')) return 'E-Mail oder Passwort falsch. Bitte prüfe deine Eingaben.';
   if (s.includes('email not confirmed')) return 'E-Mail noch nicht bestätigt. Bitte klicke den Link in der Bestätigungsmail.';
   if (s.includes('already registered') || s.includes('user already exists') || s.includes('duplicate')) return 'Diese E-Mail ist bereits registriert. Bitte melde dich an.';
-  if (s.includes('password') && (s.includes('short') || s.includes('weak') || s.includes('least'))) return 'Passwort zu schwach. Bitte mindestens 6 Zeichen verwenden.';
+  if (s.includes('password') && (s.includes('short') || s.includes('weak') || s.includes('least'))) return 'Passwort zu schwach. Mindestens 8 Zeichen, Groß-/Kleinbuchstaben, Ziffer und Sonderzeichen.';
   if (s.includes('fetch') || s.includes('network') || s.includes('failed to fetch')) return 'Netzwerkfehler. Bitte Verbindung prüfen und erneut versuchen.';
   if (s.includes('jwt') || s.includes('session')) return 'Sitzung abgelaufen. Bitte melde dich erneut an.';
   if (s.includes('nicht angemeldet')) return 'Nicht angemeldet. Bitte zuerst anmelden.';
-  if (msg) return msg;
   return 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.';
 }
 
@@ -55,7 +55,6 @@ function mapHorseError(err: unknown, context?: 'create' | 'update' | 'delete'): 
   if (s.includes('duplicate') || s.includes('unique') || s.includes('already exists')) return 'Pferd mit dieser ISO- oder FEI-Nr. existiert bereits.';
   if (s.includes('foreign key') || s.includes('owner')) return 'Besitzer nicht gefunden. Bitte Seite neu laden.';
   if (s.includes('fetch') || s.includes('network')) return 'Netzwerkfehler. Bitte Verbindung prüfen und erneut versuchen.';
-  if (msg) return msg;
   if (context === 'delete') return 'Pferd konnte nicht gelöscht werden. Bitte erneut versuchen.';
   if (context === 'update') return 'Änderungen konnten nicht gespeichert werden. Bitte erneut versuchen.';
   return 'Pferd anlegen fehlgeschlagen. Bitte erneut versuchen.';
@@ -656,6 +655,11 @@ const App: React.FC = () => {
                 setAuthError('Die Passwörter stimmen nicht überein.');
                 return;
               }
+              const resetPwdCheck = validatePasswordStrength(resetPasswordNew);
+              if (!resetPwdCheck.valid) {
+                setAuthError(resetPwdCheck.message ?? 'Passwort zu schwach.');
+                return;
+              }
               setAuthLoading(true);
               try {
                 await auth.updateAuthPassword(resetPasswordNew);
@@ -669,8 +673,8 @@ const App: React.FC = () => {
                 setAuthLoading(false);
               }
             }}>
-              <input type="password" placeholder="Neues Passwort" value={resetPasswordNew} onChange={e => setResetPasswordNew(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required minLength={6} />
-              <input type="password" placeholder="Passwort bestätigen" value={resetPasswordConfirm} onChange={e => setResetPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required minLength={6} />
+              <input type="password" placeholder="Neues Passwort (min. 8 Zeichen, Groß-/Kleinbuchstaben, Ziffer, Sonderzeichen)" value={resetPasswordNew} onChange={e => setResetPasswordNew(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required minLength={8} />
+              <input type="password" placeholder="Passwort bestätigen" value={resetPasswordConfirm} onChange={e => setResetPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required minLength={8} />
               {authError && <p className="text-sm text-rose-600 font-medium">{authError}</p>}
               <button type="submit" disabled={authLoading} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg mt-4 disabled:opacity-60">Passwort speichern</button>
             </form>
@@ -720,6 +724,11 @@ const App: React.FC = () => {
                 setAuthError('Die Passwörter stimmen nicht überein.');
                 return;
               }
+              const pwdCheck = validatePasswordStrength(regPassword);
+              if (!pwdCheck.valid) {
+                setAuthError(pwdCheck.message ?? 'Passwort zu schwach.');
+                return;
+              }
               setAuthLoading(true);
               setAuthError(null);
               try {
@@ -766,8 +775,8 @@ const App: React.FC = () => {
                 </div>
               )}
               <input type="email" placeholder="E-Mail" value={regEmail} onChange={e => setRegEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
-              <input type="password" placeholder="Passwort" value={regPassword} onChange={e => setRegPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
-              <input type="password" placeholder="Passwort bestätigen" value={regPasswordConfirm} onChange={e => setRegPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+              <input type="password" placeholder="Passwort (min. 8 Zeichen, Groß-/Kleinbuchstaben, Ziffer, Sonderzeichen)" value={regPassword} onChange={e => setRegPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required minLength={8} />
+              <input type="password" placeholder="Passwort bestätigen" value={regPasswordConfirm} onChange={e => setRegPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required minLength={8} />
               {authError && <p className="text-sm text-rose-600 font-medium">{authError}</p>}
               <div className="flex gap-4 mt-6">
                 <button type="button" onClick={() => { setAuthState('REGISTER_CHOICE'); clearAuthForms(); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-all">Zurück</button>
@@ -785,6 +794,11 @@ const App: React.FC = () => {
               setAuthError(null);
               if (vetPassword !== vetPasswordConfirm) {
                 setAuthError('Die Passwörter stimmen nicht überein.');
+                return;
+              }
+              const vetPwdCheck = validatePasswordStrength(vetPassword);
+              if (!vetPwdCheck.valid) {
+                setAuthError(vetPwdCheck.message ?? 'Passwort zu schwach.');
                 return;
               }
               setAuthLoading(true);
@@ -806,8 +820,8 @@ const App: React.FC = () => {
               <input type="text" placeholder="Praxis / Firmenname" value={vetPracticeName} onChange={e => setVetPracticeName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
               <input type="text" placeholder="Standort (PLZ)" value={vetZip} onChange={e => setVetZip(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
               <input type="email" placeholder="E-Mail" value={vetEmail} onChange={e => setVetEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
-              <input type="password" placeholder="Passwort" value={vetPassword} onChange={e => setVetPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
-              <input type="password" placeholder="Passwort bestätigen" value={vetPasswordConfirm} onChange={e => setVetPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
+              <input type="password" placeholder="Passwort (min. 8 Zeichen, Groß-/Kleinbuchstaben, Ziffer, Sonderzeichen)" value={vetPassword} onChange={e => setVetPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required minLength={8} />
+              <input type="password" placeholder="Passwort bestätigen" value={vetPasswordConfirm} onChange={e => setVetPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required minLength={8} />
               {authError && <p className="text-sm text-rose-600 font-medium">{authError}</p>}
               <div className="flex gap-4 mt-6">
                 <button type="button" onClick={() => { setAuthState('REGISTER_CHOICE'); setView(UserView.OWNER); clearAuthForms(); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-all">Zurück</button>
@@ -834,6 +848,11 @@ const App: React.FC = () => {
               }
               if (regPassword !== regPasswordConfirm) {
                 setAuthError('Die Passwörter stimmen nicht überein.');
+                return;
+              }
+              const bothPwdCheck = validatePasswordStrength(regPassword);
+              if (!bothPwdCheck.valid) {
+                setAuthError(bothPwdCheck.message ?? 'Passwort zu schwach.');
                 return;
               }
               setAuthLoading(true);
@@ -889,8 +908,8 @@ const App: React.FC = () => {
               <input type="text" placeholder="Standort Praxis (PLZ)" value={vetZip} onChange={e => setVetZip(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
               <div className="text-sm font-bold text-slate-600 border-b border-slate-100 pb-2 pt-4">Account</div>
               <input type="email" placeholder="E-Mail" value={regEmail} onChange={e => setRegEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
-              <input type="password" placeholder="Passwort" value={regPassword} onChange={e => setRegPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
-              <input type="password" placeholder="Passwort bestätigen" value={regPasswordConfirm} onChange={e => setRegPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required />
+              <input type="password" placeholder="Passwort (min. 8 Zeichen, Groß-/Kleinbuchstaben, Ziffer, Sonderzeichen)" value={regPassword} onChange={e => setRegPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required minLength={8} />
+              <input type="password" placeholder="Passwort bestätigen" value={regPasswordConfirm} onChange={e => setRegPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" required minLength={8} />
               {authError && <p className="text-sm text-rose-600 font-medium">{authError}</p>}
               <div className="flex gap-4 mt-6">
                 <button type="button" onClick={() => { setAuthState('REGISTER_CHOICE'); clearAuthForms(); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-all">Zurück</button>
@@ -944,9 +963,23 @@ const App: React.FC = () => {
               <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">E-Mail</label><input type="email" value={userEmail ?? ''} onChange={e => setUserEmail(e.target.value || null)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="E-Mail" /></div>
               <div className="col-span-2 space-y-3 pt-2 border-t border-slate-50">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Passwort ändern</p>
-                <div className="space-y-2"><label className="text-xs text-slate-500">Aktuelles Passwort</label><input type="password" value={settingsOldPassword} onChange={e => setSettingsOldPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Leer lassen, um Passwort beizubehalten" autoComplete="current-password" /></div>
+                <div className="space-y-2"><label className="text-xs text-slate-500">Aktuelles Passwort</label><input type="password" value={settingsOldPassword} onChange={e => setSettingsOldPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Aktuelles Passwort" autoComplete="current-password" /></div>
                 <div className="space-y-2"><label className="text-xs text-slate-500">Neues Passwort</label><input type="password" value={settingsPassword} onChange={e => setSettingsPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Neues Passwort" autoComplete="new-password" /></div>
                 <div className="space-y-2"><label className="text-xs text-slate-500">Neues Passwort bestätigen</label><input type="password" value={settingsPasswordConfirm} onChange={e => setSettingsPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Passwort wiederholen" autoComplete="new-password" /></div>
+                <button type="button" disabled={authLoading || !settingsOldPassword.trim() || !settingsPassword.trim() || settingsPassword !== settingsPasswordConfirm} onClick={async () => {
+                  setAuthError(null); setProfileSaveSuccess(false); setAuthLoading(true);
+                  if (!profile || !settingsOldPassword.trim() || !settingsPassword.trim() || settingsPassword !== settingsPasswordConfirm) { setAuthLoading(false); return; }
+                  const pwdCheck = validatePasswordStrength(settingsPassword);
+                  if (!pwdCheck.valid) { setAuthError(pwdCheck.message ?? 'Passwort zu schwach.'); setAuthLoading(false); return; }
+                  try {
+                    const email = (await auth.getCurrentUserEmail()) ?? userEmail ?? '';
+                    if (!email) throw new Error('E-Mail-Adresse nicht gefunden.');
+                    await auth.changePasswordWithVerification(email, settingsOldPassword, settingsPassword);
+                    setSettingsPassword(''); setSettingsOldPassword(''); setSettingsPasswordConfirm('');
+                    setProfileSaveSuccess('password');
+                  } catch (e) { setAuthError(mapAuthError(e)); }
+                  finally { setAuthLoading(false); }
+                }} className="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">Passwort ändern</button>
               </div>
             </div>
             <div className="space-y-6 pt-10 border-t border-slate-100">
@@ -970,28 +1003,9 @@ const App: React.FC = () => {
                 setAuthError(null);
                 setProfileSaveSuccess(false);
                 if (!profile) return;
-                const wantsPasswordChange = settingsOldPassword.trim() || settingsPassword.trim() || settingsPasswordConfirm.trim();
-                if (wantsPasswordChange) {
-                  if (!settingsOldPassword.trim() || !settingsPassword.trim() || !settingsPasswordConfirm.trim()) {
-                    setAuthError('Zum Passwort ändern alle drei Felder ausfüllen (aktuelles, neues, Bestätigung).');
-                    return;
-                  }
-                  if (settingsPassword !== settingsPasswordConfirm) {
-                    setAuthError('Neues Passwort und Bestätigung stimmen nicht überein.');
-                    return;
-                  }
-                }
                 try {
                   if ((userEmail ?? '').trim() && userEmail !== (await auth.getCurrentUserEmail())) {
                     await auth.updateAuthEmail(userEmail!.trim());
-                  }
-                  if (wantsPasswordChange) {
-                    const email = (await auth.getCurrentUserEmail()) ?? userEmail ?? '';
-                    if (!email) throw new Error('E-Mail-Adresse nicht gefunden.');
-                    await auth.changePasswordWithVerification(email, settingsOldPassword, settingsPassword);
-                    setSettingsPassword('');
-                    setSettingsOldPassword('');
-                    setSettingsPasswordConfirm('');
                   }
                   const p = await auth.updateProfile({
                     first_name: userSettings.firstName,
@@ -1002,7 +1016,7 @@ const App: React.FC = () => {
                     notify_hoof: userSettings.notifyHoof,
                   });
                   setProfile(p);
-                  setProfileSaveSuccess(wantsPasswordChange ? 'password' : true);
+                  setProfileSaveSuccess(true);
                   setUserSettings({ ...userSettings, firstName: p.first_name ?? '', lastName: p.last_name ?? '', stallName: p.stall_name ?? p.practice_name ?? '', zip: p.zip ?? '', notifyVaccination: p.notify_vaccination ?? true, notifyHoof: p.notify_hoof ?? true });
                   const em = await auth.getCurrentUserEmail();
                   setUserEmail(em ?? null);
@@ -1145,9 +1159,23 @@ const App: React.FC = () => {
                   <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">E-Mail</label><input type="email" value={userEmail ?? ''} onChange={e => setUserEmail(e.target.value || null)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="E-Mail" /></div>
                   <div className="col-span-2 space-y-3 pt-2 border-t border-slate-50">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Passwort ändern</p>
-                    <div className="space-y-2"><label className="text-xs text-slate-500">Aktuelles Passwort</label><input type="password" value={settingsOldPassword} onChange={e => setSettingsOldPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Leer lassen, um Passwort beizubehalten" autoComplete="current-password" /></div>
+                    <div className="space-y-2"><label className="text-xs text-slate-500">Aktuelles Passwort</label><input type="password" value={settingsOldPassword} onChange={e => setSettingsOldPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Aktuelles Passwort" autoComplete="current-password" /></div>
                     <div className="space-y-2"><label className="text-xs text-slate-500">Neues Passwort</label><input type="password" value={settingsPassword} onChange={e => setSettingsPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Neues Passwort" autoComplete="new-password" /></div>
                     <div className="space-y-2"><label className="text-xs text-slate-500">Neues Passwort bestätigen</label><input type="password" value={settingsPasswordConfirm} onChange={e => setSettingsPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Passwort wiederholen" autoComplete="new-password" /></div>
+                    <button type="button" disabled={authLoading || !settingsOldPassword.trim() || !settingsPassword.trim() || settingsPassword !== settingsPasswordConfirm} onClick={async () => {
+                      setAuthError(null); setProfileSaveSuccess(false); setAuthLoading(true);
+                      if (!profile || !settingsOldPassword.trim() || !settingsPassword.trim() || settingsPassword !== settingsPasswordConfirm) { setAuthLoading(false); return; }
+                      const vetPwdCheck = validatePasswordStrength(settingsPassword);
+                      if (!vetPwdCheck.valid) { setAuthError(vetPwdCheck.message ?? 'Passwort zu schwach.'); setAuthLoading(false); return; }
+                      try {
+                        const email = (await auth.getCurrentUserEmail()) ?? userEmail ?? '';
+                        if (!email) throw new Error('E-Mail-Adresse nicht gefunden.');
+                        await auth.changePasswordWithVerification(email, settingsOldPassword, settingsPassword);
+                        setSettingsPassword(''); setSettingsOldPassword(''); setSettingsPasswordConfirm('');
+                        setProfileSaveSuccess('password');
+                      } catch (e) { setAuthError(mapAuthError(e)); }
+                      finally { setAuthLoading(false); }
+                    }} className="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">Passwort ändern</button>
                   </div>
                 </div>
                 <div className="space-y-6 pt-10 border-t border-slate-100">
@@ -1170,28 +1198,9 @@ const App: React.FC = () => {
                   <button type="button" onClick={async () => {
                     setAuthError(null); setProfileSaveSuccess(false);
                     if (!profile) return;
-                    const wantsPasswordChange = settingsOldPassword.trim() || settingsPassword.trim() || settingsPasswordConfirm.trim();
-                    if (wantsPasswordChange) {
-                      if (!settingsOldPassword.trim() || !settingsPassword.trim() || !settingsPasswordConfirm.trim()) {
-                        setAuthError('Zum Passwort ändern alle drei Felder ausfüllen (aktuelles, neues, Bestätigung).');
-                        return;
-                      }
-                      if (settingsPassword !== settingsPasswordConfirm) {
-                        setAuthError('Neues Passwort und Bestätigung stimmen nicht überein.');
-                        return;
-                      }
-                    }
                     try {
                       if ((userEmail ?? '').trim() && userEmail !== (await auth.getCurrentUserEmail())) {
                         await auth.updateAuthEmail(userEmail!.trim());
-                      }
-                      if (wantsPasswordChange) {
-                        const email = (await auth.getCurrentUserEmail()) ?? userEmail ?? '';
-                        if (!email) throw new Error('E-Mail-Adresse nicht gefunden.');
-                        await auth.changePasswordWithVerification(email, settingsOldPassword, settingsPassword);
-                        setSettingsPassword('');
-                        setSettingsOldPassword('');
-                        setSettingsPasswordConfirm('');
                       }
                       const p = await auth.updateProfile({
                         practice_name: vetSettings.practiceName || null,
@@ -1200,7 +1209,7 @@ const App: React.FC = () => {
                         notify_hoof: vetSettings.notifyHoof,
                       });
                       setProfile(p);
-                      setProfileSaveSuccess(wantsPasswordChange ? 'password' : true);
+                      setProfileSaveSuccess(true);
                       setVetSettings({ ...vetSettings, practiceName: p.practice_name ?? '', zip: p.practice_zip ?? p.zip ?? '', notifyVaccination: p.notify_vaccination ?? true, notifyHoof: p.notify_hoof ?? true });
                       const em = await auth.getCurrentUserEmail();
                       setUserEmail(em ?? null);
