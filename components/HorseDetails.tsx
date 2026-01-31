@@ -474,6 +474,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                       <span>Mediathek</span>
                       <input type="file" accept="image/*" className="sr-only" disabled={imageUploading} onChange={async e => { const f = e.target.files?.[0]; if (!f || !horse.ownerId) return; setImageUploading(true); try { const url = await uploadHorseImage(f, horse.ownerId, horse.id); setEditedHorse(prev => ({ ...prev, image: url })); } catch (_) {} finally { setImageUploading(false); e.target.value = ''; } }} />
                     </label>
+                  </div>
                 </div>
               </div>
               <div className="col-span-2 pt-2 border-t border-slate-100 hidden">
