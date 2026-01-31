@@ -5,10 +5,17 @@ input, select, textarea { max-width: 100%; font-size: 16px; }
 @media (max-width: 640px) {
   input, select, textarea { font-size: 16px !important; }
 }
-/* Modals mobil: Safe-Area, kein Überlappen */
-@media (max-width: 640px) {
+/* Modals mobil: volle Breite, kein seitliches Scrollen */
+@media (max-width: 767px) {
   .modal-overlay { padding: 0.5rem; padding-bottom: env(safe-area-inset-bottom, 0.5rem); align-items: flex-start; }
-  .modal-content { margin-top: 1rem; margin-bottom: 2rem; max-height: calc(100dvh - 3rem) !important; }
+  .modal-content {
+    width: 100% !important;
+    max-width: calc(100vw - 1rem) !important;
+    margin-top: 1rem;
+    margin-bottom: 2rem;
+    max-height: calc(100dvh - 3rem) !important;
+    box-sizing: border-box;
+  }
 }
 /* Mobil: kompakte Eingabefelder + Grids als 1 Spalte */
 @media (max-width: 767px) {

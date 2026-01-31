@@ -71,7 +71,6 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAddHorseModal, setShowAddHorseModal] = useState(false);
   const [showTerminModal, setShowTerminModal] = useState(false);
-  const [addMode, setAddMode] = useState<'manual' | 'transfer'>('manual');
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
@@ -121,7 +120,6 @@ const App: React.FC = () => {
     breed: '', color: '',
   });
   const [newHorseImageFile, setNewHorseImageFile] = useState<File | null>(null);
-  const [redeemCode, setRedeemCode] = useState('');
   const [horseCreateLoading, setHorseCreateLoading] = useState(false);
   const [horseError, setHorseError] = useState<string | null>(null);
   const [rimondoUrl, setRimondoUrl] = useState('');
@@ -139,10 +137,8 @@ const App: React.FC = () => {
     setShowAddHorseModal(false);
     setNewHorseData(defaultHorseData());
     setNewHorseImageFile(null);
-    setRedeemCode('');
     setRimondoUrl('');
     setRimondoPreviewData(null);
-    setAddMode('manual');
     setHorseError(null);
   };
 
@@ -488,10 +484,6 @@ const App: React.FC = () => {
   const handleCreateHorse = async (e: React.FormEvent) => {
     e.preventDefault();
     setHorseError(null);
-    if (addMode === 'transfer') {
-      setHorseError('Transfer-Code wird derzeit nicht unterstützt. Bitte Pferd manuell anlegen.');
-      return;
-    }
     let effectiveProfile = profile;
     if (!effectiveProfile) {
       const p = await auth.getProfile();
@@ -1116,14 +1108,10 @@ const App: React.FC = () => {
             </div>
           )}
           <form onSubmit={handleCreateHorse} className="modal-form bg-white rounded-2xl sm:rounded-[2.5rem] p-3 sm:p-10 w-full max-w-[min(100vw-1rem,36rem)] shadow-2xl animate-in zoom-in-95 duration-200 space-y-3 sm:space-y-6 my-2 sm:my-auto modal-content max-h-[calc(100dvh-2rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-3 border-b border-slate-100 pb-3 sm:pb-6">
+            <div className="border-b border-slate-100 pb-3 sm:pb-6">
               <h4 className="text-lg sm:text-2xl font-black tracking-tight">Neues Pferd</h4>
-              <div className="flex bg-slate-100 p-1 rounded-xl sm:rounded-2xl shrink-0">
-                <button type="button" onClick={() => setAddMode('manual')} className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition-all ${addMode === 'manual' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}>Manuell</button>
-                <button type="button" onClick={() => setAddMode('transfer')} className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold transition-all ${addMode === 'transfer' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}>Transfer-Code</button>
-              </div>
             </div>
-            {addMode === 'manual' ? (
+            (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-5 max-h-[50vh] sm:max-h-[50vh] overflow-y-auto pr-1 sm:pr-3 custom-scrollbar">
                 <div className="col-span-2 sm:col-span-2 space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename *</label><input required type="text" value={newHorseData.name} onChange={e => setNewHorseData({...newHorseData, name: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-base" placeholder="Name" /></div>
                 <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN) *</label><input required type="text" value={newHorseData.isoNr} onChange={e => setNewHorseData({...newHorseData, isoNr: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" placeholder="z.B. DE..." /></div>
@@ -1140,11 +1128,16 @@ const App: React.FC = () => {
                 <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Chip-ID</label><input type="text" value={newHorseData.chipId} onChange={e => setNewHorseData({...newHorseData, chipId: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-base" /></div>
                 <div className="col-span-2 space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Profilbild</label>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <label className="flex items-center gap-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-100 transition-colors text-sm font-medium text-slate-700">
-                      <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                      <span>Foto aufnehmen / hochladen</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="flex items-center gap-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors text-sm font-medium text-slate-700">
+                      <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /></svg>
+                      <span>Kamera</span>
                       <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={e => { const f = e.target.files?.[0]; setNewHorseImageFile(f || null); }} />
+                    </label>
+                    <label className="flex items-center gap-2 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors text-sm font-medium text-slate-700">
+                      <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      <span>Mediathek</span>
+                      <input type="file" accept="image/*" className="sr-only" onChange={e => { const f = e.target.files?.[0]; setNewHorseImageFile(f || null); }} />
                     </label>
                     {newHorseImageFile && (
                       <>
@@ -1153,15 +1146,10 @@ const App: React.FC = () => {
                       </>
                     )}
                   </div>
-                  <p className="text-[10px] text-slate-400">Auf dem Handy: Kamera nutzen. Sonst: Bild auswählen. Ohne Foto wird ein Platzhalter verwendet.</p>
+                  <p className="text-[10px] text-slate-400">Kamera oder Mediathek. Ohne Foto wird ein Platzhalter verwendet.</p>
                 </div>
               </div>
-            ) : (
-              <div className="py-8 sm:py-12 space-y-4 sm:space-y-6 text-center">
-                <p className="text-sm text-slate-400 font-medium">Gib den 6-stelligen Transfer-Code ein, um ein Pferd zu übernehmen.</p>
-                <input type="text" maxLength={6} value={redeemCode} onChange={e => setRedeemCode(e.target.value.replace(/\D/g,''))} placeholder="000000" className="w-full p-4 sm:p-8 text-center text-3xl sm:text-5xl font-black tracking-[0.5rem] sm:tracking-[1rem] bg-slate-50 border border-slate-200 rounded-2xl sm:rounded-[2.5rem] outline-none focus:ring-2 focus:ring-indigo-500 text-base" />
-              </div>
-            )}
+            )
             {horseError && <p className="text-sm text-rose-600 font-medium">{horseError}</p>}
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 border-t border-slate-50">
               <button type="button" onClick={closeAddHorseModal} className="flex-1 py-3 sm:py-4 bg-slate-100 text-slate-700 font-bold rounded-xl sm:rounded-2xl hover:bg-slate-200 text-sm sm:text-base">Abbrechen</button>
