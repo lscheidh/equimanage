@@ -1124,7 +1124,7 @@ const App: React.FC = () => {
               </div>
             </div>
             {addMode === 'manual' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-5 max-h-[50vh] sm:max-h-[50vh] overflow-y-auto pr-1 sm:pr-3 custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-5 max-h-[50vh] sm:max-h-[50vh] overflow-y-auto pr-1 sm:pr-3 custom-scrollbar">
                 <div className="col-span-2 sm:col-span-2 space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pferdename *</label><input required type="text" value={newHorseData.name} onChange={e => setNewHorseData({...newHorseData, name: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-base" placeholder="Name" /></div>
                 <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">ISO-Nr. (UELN) *</label><input required type="text" value={newHorseData.isoNr} onChange={e => setNewHorseData({...newHorseData, isoNr: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" placeholder="z.B. DE..." /></div>
                 <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">FEI-Nr.</label><input type="text" value={newHorseData.feiNr} onChange={e => setNewHorseData({...newHorseData, feiNr: e.target.value})} className="w-full p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl outline-none text-base" placeholder="optional" /></div>
@@ -1163,7 +1163,7 @@ const App: React.FC = () => {
               </div>
             )}
             {horseError && <p className="text-sm text-rose-600 font-medium">{horseError}</p>}
-            <div className="flex gap-3 sm:gap-4 pt-4 border-t border-slate-50">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 border-t border-slate-50">
               <button type="button" onClick={closeAddHorseModal} className="flex-1 py-3 sm:py-4 bg-slate-100 text-slate-700 font-bold rounded-xl sm:rounded-2xl hover:bg-slate-200 text-sm sm:text-base">Abbrechen</button>
               <button type="submit" disabled={horseCreateLoading} className="flex-1 py-3 sm:py-4 bg-indigo-600 text-white font-bold rounded-xl sm:rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-60 text-sm sm:text-base">{horseCreateLoading ? 'Wird hinzugefügt…' : 'Pferd hinzufügen'}</button>
             </div>
