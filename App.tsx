@@ -946,26 +946,27 @@ const App: React.FC = () => {
     if (ownerSubView === 'settings') {
       return (
         <div className="max-w-4xl mx-auto w-full max-w-[min(100vw-1rem,56rem)] bg-white rounded-2xl sm:rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4">
-          <div className="bg-slate-900 p-10 text-white flex items-center gap-8">
-            <div className="w-28 h-28 bg-slate-800 rounded-full flex items-center justify-center text-4xl font-black border-4 border-slate-700 shadow-xl">{getProfileInitials(profile)}</div>
-            <div>
-              <h2 className="text-4xl font-black tracking-tight">{userSettings.firstName} {userSettings.lastName}</h2>
-              <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">{stallDisplay || userSettings.stallName}</p>
+          <div className="bg-slate-900 p-6 md:p-10 text-white flex flex-col md:flex-row items-center gap-6 md:gap-8">
+            <div className="w-20 h-20 md:w-28 md:h-28 bg-slate-800 rounded-full flex items-center justify-center text-3xl md:text-4xl font-black border-4 border-slate-700 shadow-xl shrink-0">{getProfileInitials(profile)}</div>
+            <div className="text-center md:text-left min-w-0">
+              <h2 className="text-2xl md:text-4xl font-black tracking-tight truncate">{userSettings.firstName} {userSettings.lastName}</h2>
+              <p className="text-slate-400 font-bold uppercase text-xs tracking-widest truncate">{stallDisplay || userSettings.stallName}</p>
             </div>
           </div>
-          <div className="p-10 space-y-10">
+          <div className="p-4 sm:p-6 md:p-10 space-y-8 md:space-y-10">
             <p className="text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3">Alle Angaben aus der Registrierung kannst du hier ändern (inkl. E-Mail und Passwort).</p>
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vorname</label><input type="text" value={userSettings.firstName} onChange={e => setUserSettings({...userSettings, firstName: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nachname</label><input type="text" value={userSettings.lastName} onChange={e => setUserSettings({...userSettings, lastName: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Stall / Betrieb</label><input type="text" value={userSettings.stallName} onChange={e => setUserSettings({...userSettings, stallName: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
               <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">PLZ</label><input type="text" value={userSettings.zip} onChange={e => setUserSettings({...userSettings, zip: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="z.B. 10115" /></div>
-              <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">E-Mail</label><input type="email" value={userEmail ?? ''} onChange={e => setUserEmail(e.target.value || null)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="E-Mail" /></div>
-              <div className="col-span-2 space-y-3 pt-2 border-t border-slate-50">
+              <div className="md:col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">E-Mail</label><input type="email" value={userEmail ?? ''} onChange={e => setUserEmail(e.target.value || null)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="E-Mail" /></div>
+              <div className="md:col-span-2 space-y-3 pt-2 border-t border-slate-100">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Passwort ändern</p>
-                <div className="space-y-2"><label className="text-xs text-slate-500">Aktuelles Passwort</label><input type="password" value={settingsOldPassword} onChange={e => setSettingsOldPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Aktuelles Passwort" autoComplete="current-password" /></div>
-                <div className="space-y-2"><label className="text-xs text-slate-500">Neues Passwort</label><input type="password" value={settingsPassword} onChange={e => setSettingsPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Neues Passwort" autoComplete="new-password" /></div>
-                <div className="space-y-2"><label className="text-xs text-slate-500">Neues Passwort bestätigen</label><input type="password" value={settingsPasswordConfirm} onChange={e => setSettingsPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Passwort wiederholen" autoComplete="new-password" /></div>
+                <div className="space-y-2"><label className="text-xs text-slate-500">Aktuelles Passwort</label><input type="password" value={settingsOldPassword} onChange={e => setSettingsOldPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Aktuelles Passwort" autoComplete="current-password" /></div>
+                <div className="space-y-2"><label className="text-xs text-slate-500">Neues Passwort</label><input type="password" value={settingsPassword} onChange={e => setSettingsPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Neues Passwort (min. 8 Zeichen, Groß-/Kleinbuchstaben, Ziffer, Sonderzeichen)" autoComplete="new-password" /></div>
+                <div className="space-y-2"><label className="text-xs text-slate-500">Neues Passwort bestätigen</label><input type="password" value={settingsPasswordConfirm} onChange={e => setSettingsPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Passwort wiederholen" autoComplete="new-password" /></div>
+                {profileSaveSuccess === 'password' && <p className="text-sm text-emerald-600 font-medium">Passwort wurde geändert.</p>}
                 <button type="button" disabled={authLoading || !settingsOldPassword.trim() || !settingsPassword.trim() || settingsPassword !== settingsPasswordConfirm} onClick={async () => {
                   setAuthError(null); setProfileSaveSuccess(false); setAuthLoading(true);
                   if (!profile || !settingsOldPassword.trim() || !settingsPassword.trim() || settingsPassword !== settingsPasswordConfirm) { setAuthLoading(false); return; }
@@ -979,25 +980,25 @@ const App: React.FC = () => {
                     setProfileSaveSuccess('password');
                   } catch (e) { setAuthError(mapAuthError(e)); }
                   finally { setAuthLoading(false); }
-                }} className="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">Passwort ändern</button>
+                }} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">Passwort ändern</button>
               </div>
             </div>
             <div className="space-y-6 pt-10 border-t border-slate-100">
               <h3 className="text-lg font-bold">Benachrichtigungen</h3>
               <div className="space-y-4">
-                <div className="flex justify-between items-center p-5 bg-slate-50 rounded-3xl">
-                  <div><p className="font-bold">Fällige Impfungen</p><p className="text-xs text-slate-400">Erinnere mich 14 Tage vor dem frühesten Fälligkeitstag.</p></div>
-                  <button onClick={() => setUserSettings({...userSettings, notifyVaccination: !userSettings.notifyVaccination})} className={`w-14 h-7 rounded-full relative transition-all ${userSettings.notifyVaccination ? 'bg-indigo-600' : 'bg-slate-300'}`}><div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${userSettings.notifyVaccination ? 'left-8' : 'left-1'}`} /></button>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-5 bg-slate-50 rounded-3xl">
+                  <div className="min-w-0"><p className="font-bold">Fällige Impfungen</p><p className="text-xs text-slate-400">Erinnere mich 14 Tage vor dem frühesten Fälligkeitstag.</p></div>
+                  <button onClick={() => setUserSettings({...userSettings, notifyVaccination: !userSettings.notifyVaccination})} className={`w-14 h-7 rounded-full relative transition-all shrink-0 self-start sm:self-center ${userSettings.notifyVaccination ? 'bg-indigo-600' : 'bg-slate-300'}`}><div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${userSettings.notifyVaccination ? 'left-8' : 'left-1'}`} /></button>
                 </div>
-                <div className="flex justify-between items-center p-5 bg-slate-50 rounded-3xl">
-                  <div><p className="font-bold">Hufschmied-Termine</p><p className="text-xs text-slate-400">Erinnere mich nach 6 Wochen an den Schmied.</p></div>
-                  <button onClick={() => setUserSettings({...userSettings, notifyHoof: !userSettings.notifyHoof})} className={`w-14 h-7 rounded-full relative transition-all ${userSettings.notifyHoof ? 'bg-emerald-600' : 'bg-slate-300'}`}><div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${userSettings.notifyHoof ? 'left-8' : 'left-1'}`} /></button>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-5 bg-slate-50 rounded-3xl">
+                  <div className="min-w-0"><p className="font-bold">Hufschmied-Termine</p><p className="text-xs text-slate-400">Erinnere mich nach 6 Wochen an den Schmied.</p></div>
+                  <button onClick={() => setUserSettings({...userSettings, notifyHoof: !userSettings.notifyHoof})} className={`w-14 h-7 rounded-full relative transition-all shrink-0 self-start sm:self-center ${userSettings.notifyHoof ? 'bg-emerald-600' : 'bg-slate-300'}`}><div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${userSettings.notifyHoof ? 'left-8' : 'left-1'}`} /></button>
                 </div>
               </div>
             </div>
             {authError && <p className="text-sm text-rose-600 font-medium">{authError}</p>}
-            {profileSaveSuccess && <p className="text-sm text-emerald-600 font-medium">Gespeichert.{profileSaveSuccess === 'password' ? ' Passwort wurde geändert.' : ''} Du wirst zum Dashboard weitergeleitet.</p>}
-            <div className="flex gap-4">
+            {profileSaveSuccess === true && <p className="text-sm text-emerald-600 font-medium">Änderungen gespeichert.</p>}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <button type="button" onClick={() => { setOwnerSubView('dashboard'); setAuthError(null); setProfileSaveSuccess(false); setSettingsPassword(''); setSettingsOldPassword(''); setSettingsPasswordConfirm(''); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-all">Abbrechen</button>
               <button type="button" onClick={async () => {
                 setAuthError(null);
@@ -1020,7 +1021,6 @@ const App: React.FC = () => {
                   setUserSettings({ ...userSettings, firstName: p.first_name ?? '', lastName: p.last_name ?? '', stallName: p.stall_name ?? p.practice_name ?? '', zip: p.zip ?? '', notifyVaccination: p.notify_vaccination ?? true, notifyHoof: p.notify_hoof ?? true });
                   const em = await auth.getCurrentUserEmail();
                   setUserEmail(em ?? null);
-                  setTimeout(() => { setOwnerSubView('dashboard'); setProfileSaveSuccess(false); }, 1200);
                 } catch (e) {
                   setAuthError(mapAuthError(e));
                 }
@@ -1144,24 +1144,25 @@ const App: React.FC = () => {
         ) : authState === 'AUTHENTICATED' ? (view === UserView.VET ? (
           vetSubView === 'settings' ? (
             <div className="max-w-4xl mx-auto w-full max-w-[min(100vw-1rem,56rem)] bg-white rounded-2xl sm:rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4">
-              <div className="bg-slate-900 p-10 text-white flex items-center gap-8">
-                <div className="w-28 h-28 bg-slate-800 rounded-full flex items-center justify-center text-4xl font-black border-4 border-slate-700 shadow-xl">{getProfileInitials(profile)}</div>
-                <div>
-                  <h2 className="text-4xl font-black tracking-tight">{vetSettings.practiceName || 'Tierarzt'}</h2>
-                  <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">PLZ {vetSettings.zip || '—'}</p>
+              <div className="bg-slate-900 p-6 md:p-10 text-white flex flex-col md:flex-row items-center gap-6 md:gap-8">
+                <div className="w-20 h-20 md:w-28 md:h-28 bg-slate-800 rounded-full flex items-center justify-center text-3xl md:text-4xl font-black border-4 border-slate-700 shadow-xl shrink-0">{getProfileInitials(profile)}</div>
+                <div className="text-center md:text-left min-w-0">
+                  <h2 className="text-2xl md:text-4xl font-black tracking-tight truncate">{vetSettings.practiceName || 'Tierarzt'}</h2>
+                  <p className="text-slate-400 font-bold uppercase text-xs tracking-widest truncate">PLZ {vetSettings.zip || '—'}</p>
                 </div>
               </div>
-              <div className="p-10 space-y-10">
+              <div className="p-4 sm:p-6 md:p-10 space-y-8 md:space-y-10">
                 <p className="text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3">Alle Angaben aus der Registrierung kannst du hier ändern (inkl. E-Mail und Passwort).</p>
-                <div className="grid grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                   <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Praxisname</label><input type="text" value={vetSettings.practiceName} onChange={e => setVetSettings({ ...vetSettings, practiceName: e.target.value })} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" /></div>
                   <div className="space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">PLZ</label><input type="text" value={vetSettings.zip} onChange={e => setVetSettings({ ...vetSettings, zip: e.target.value })} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="z.B. 10115" /></div>
-                  <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">E-Mail</label><input type="email" value={userEmail ?? ''} onChange={e => setUserEmail(e.target.value || null)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="E-Mail" /></div>
-                  <div className="col-span-2 space-y-3 pt-2 border-t border-slate-50">
+                  <div className="md:col-span-2 space-y-2"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">E-Mail</label><input type="email" value={userEmail ?? ''} onChange={e => setUserEmail(e.target.value || null)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="E-Mail" /></div>
+                  <div className="md:col-span-2 space-y-3 pt-2 border-t border-slate-100">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Passwort ändern</p>
-                    <div className="space-y-2"><label className="text-xs text-slate-500">Aktuelles Passwort</label><input type="password" value={settingsOldPassword} onChange={e => setSettingsOldPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Aktuelles Passwort" autoComplete="current-password" /></div>
-                    <div className="space-y-2"><label className="text-xs text-slate-500">Neues Passwort</label><input type="password" value={settingsPassword} onChange={e => setSettingsPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Neues Passwort" autoComplete="new-password" /></div>
-                    <div className="space-y-2"><label className="text-xs text-slate-500">Neues Passwort bestätigen</label><input type="password" value={settingsPasswordConfirm} onChange={e => setSettingsPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none" placeholder="Passwort wiederholen" autoComplete="new-password" /></div>
+                    <div className="space-y-2"><label className="text-xs text-slate-500">Aktuelles Passwort</label><input type="password" value={settingsOldPassword} onChange={e => setSettingsOldPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Aktuelles Passwort" autoComplete="current-password" /></div>
+                    <div className="space-y-2"><label className="text-xs text-slate-500">Neues Passwort</label><input type="password" value={settingsPassword} onChange={e => setSettingsPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Neues Passwort (min. 8 Zeichen, Groß-/Kleinbuchstaben, Ziffer, Sonderzeichen)" autoComplete="new-password" /></div>
+                    <div className="space-y-2"><label className="text-xs text-slate-500">Neues Passwort bestätigen</label><input type="password" value={settingsPasswordConfirm} onChange={e => setSettingsPasswordConfirm(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Passwort wiederholen" autoComplete="new-password" /></div>
+                    {profileSaveSuccess === 'password' && <p className="text-sm text-emerald-600 font-medium">Passwort wurde geändert.</p>}
                     <button type="button" disabled={authLoading || !settingsOldPassword.trim() || !settingsPassword.trim() || settingsPassword !== settingsPasswordConfirm} onClick={async () => {
                       setAuthError(null); setProfileSaveSuccess(false); setAuthLoading(true);
                       if (!profile || !settingsOldPassword.trim() || !settingsPassword.trim() || settingsPassword !== settingsPasswordConfirm) { setAuthLoading(false); return; }
@@ -1175,25 +1176,25 @@ const App: React.FC = () => {
                         setProfileSaveSuccess('password');
                       } catch (e) { setAuthError(mapAuthError(e)); }
                       finally { setAuthLoading(false); }
-                    }} className="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">Passwort ändern</button>
+                    }} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">Passwort ändern</button>
                   </div>
                 </div>
                 <div className="space-y-6 pt-10 border-t border-slate-100">
                   <h3 className="text-lg font-bold">Benachrichtigungen</h3>
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center p-5 bg-slate-50 rounded-3xl">
-                      <div><p className="font-bold">Fällige Impfungen</p><p className="text-xs text-slate-400">Hinweise zu Terminanfragen.</p></div>
-                      <button onClick={() => setVetSettings({ ...vetSettings, notifyVaccination: !vetSettings.notifyVaccination })} className={`w-14 h-7 rounded-full relative transition-all ${vetSettings.notifyVaccination ? 'bg-indigo-600' : 'bg-slate-300'}`}><div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${vetSettings.notifyVaccination ? 'left-8' : 'left-1'}`} /></button>
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-5 bg-slate-50 rounded-3xl">
+                      <div className="min-w-0"><p className="font-bold">Fällige Impfungen</p><p className="text-xs text-slate-400">Hinweise zu Terminanfragen.</p></div>
+                      <button onClick={() => setVetSettings({ ...vetSettings, notifyVaccination: !vetSettings.notifyVaccination })} className={`w-14 h-7 rounded-full relative transition-all shrink-0 self-start sm:self-center ${vetSettings.notifyVaccination ? 'bg-indigo-600' : 'bg-slate-300'}`}><div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${vetSettings.notifyVaccination ? 'left-8' : 'left-1'}`} /></button>
                     </div>
-                    <div className="flex justify-between items-center p-5 bg-slate-50 rounded-3xl">
-                      <div><p className="font-bold">Allgemeine Erinnerungen</p><p className="text-xs text-slate-400">Weitere Benachrichtigungen.</p></div>
-                      <button onClick={() => setVetSettings({ ...vetSettings, notifyHoof: !vetSettings.notifyHoof })} className={`w-14 h-7 rounded-full relative transition-all ${vetSettings.notifyHoof ? 'bg-emerald-600' : 'bg-slate-300'}`}><div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${vetSettings.notifyHoof ? 'left-8' : 'left-1'}`} /></button>
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-5 bg-slate-50 rounded-3xl">
+                      <div className="min-w-0"><p className="font-bold">Allgemeine Erinnerungen</p><p className="text-xs text-slate-400">Weitere Benachrichtigungen.</p></div>
+                      <button onClick={() => setVetSettings({ ...vetSettings, notifyHoof: !vetSettings.notifyHoof })} className={`w-14 h-7 rounded-full relative transition-all shrink-0 self-start sm:self-center ${vetSettings.notifyHoof ? 'bg-emerald-600' : 'bg-slate-300'}`}><div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${vetSettings.notifyHoof ? 'left-8' : 'left-1'}`} /></button>
                     </div>
                   </div>
                 </div>
                 {authError && <p className="text-sm text-rose-600 font-medium">{authError}</p>}
-                {profileSaveSuccess && <p className="text-sm text-emerald-600 font-medium">Gespeichert.{profileSaveSuccess === 'password' ? ' Passwort wurde geändert.' : ''} Du wirst zum Dashboard weitergeleitet.</p>}
-                <div className="flex gap-4">
+                {profileSaveSuccess === true && <p className="text-sm text-emerald-600 font-medium">Änderungen gespeichert.</p>}
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <button type="button" onClick={() => { setVetSubView('dashboard'); setAuthError(null); setProfileSaveSuccess(false); setSettingsPassword(''); setSettingsOldPassword(''); setSettingsPasswordConfirm(''); }} className="flex-1 py-4 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition-all">Abbrechen</button>
                   <button type="button" onClick={async () => {
                     setAuthError(null); setProfileSaveSuccess(false);
@@ -1213,7 +1214,6 @@ const App: React.FC = () => {
                       setVetSettings({ ...vetSettings, practiceName: p.practice_name ?? '', zip: p.practice_zip ?? p.zip ?? '', notifyVaccination: p.notify_vaccination ?? true, notifyHoof: p.notify_hoof ?? true });
                       const em = await auth.getCurrentUserEmail();
                       setUserEmail(em ?? null);
-                      setTimeout(() => { setVetSubView('dashboard'); setProfileSaveSuccess(false); }, 1200);
                     } catch (e) {
                       setAuthError(mapAuthError(e));
                     }
