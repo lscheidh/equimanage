@@ -8,3 +8,13 @@ verify_jwt = false
 [functions.run-daily-due-checks]
 # Cron (cron-job.org etc.) sendet kein JWT, sondern x-cron-secret – Validierung in der Funktion
 verify_jwt = false
+
+[functions.check-vaccination-due]
+# Wird von run-daily-due-checks mit Bearer-Token aufgerufen; Gateway wertet JWT als ungültig → verify_jwt = false
+# Die Funktion prüft selbst x-cron-secret bei Cron-Aufrufen
+verify_jwt = false
+
+[functions.check-hoof-due]
+# Wird von run-daily-due-checks mit Bearer-Token aufgerufen; Gateway wertet JWT als ungültig → verify_jwt = false
+# Die Funktion prüft selbst x-cron-secret bei Cron-Aufrufen
+verify_jwt = false
