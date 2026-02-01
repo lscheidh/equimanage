@@ -7,6 +7,12 @@ const DAYS_V2_OVERDUE = 71;
 const DAYS_6_MONTHS = 6 * 30;
 const DAYS_V3_BOOSTER_GRACE_END = DAYS_6_MONTHS + 21;
 const DAYS_V3_BOOSTER_OVERDUE = DAYS_6_MONTHS + 22;
+const DAYS_1_YEAR = 365;
+const TETANUS_V3_GRACE_END = DAYS_1_YEAR + 21;
+const TETANUS_V3_OVERDUE = DAYS_1_YEAR + 22;
+const DAYS_2_YEARS = 730;
+const TETANUS_BOOSTER_GRACE_END = DAYS_2_YEARS + 21;
+const TETANUS_BOOSTER_OVERDUE = DAYS_2_YEARS + 22;
 const NOTIFY_DAYS_BEFORE = 14;
 
 function daysSince(d: Date): number {
@@ -79,23 +85,39 @@ export function getVaccinationDueItems(horse: HorseLike): VaccDueItem[] {
     const seq = last.sequence || (last.isBooster ? 'Booster' : 'V1');
     const d = daysSince(lastDate);
     const onlyBooster = list.length === 1 && (seq === 'Booster' || last.isBooster);
+    const isTetanus = type === 'Tetanus';
     let dueMin: number, dueMax: number, phase: string, intervalOk = true;
     if (onlyBooster) {
-      dueMin = DAYS_6_MONTHS;
-      dueMax = DAYS_V3_BOOSTER_GRACE_END;
+      if (isTetanus) {
+        dueMin = DAYS_2_YEARS;
+        dueMax = TETANUS_BOOSTER_GRACE_END;
+      } else {
+        dueMin = DAYS_6_MONTHS;
+        dueMax = DAYS_V3_BOOSTER_GRACE_END;
+      }
       phase = 'Booster';
     } else if (seq === 'V1') {
       dueMin = DAYS_V2_DUE;
       dueMax = DAYS_V2_GRACE_END;
       phase = 'V2';
     } else if (seq === 'V2') {
-      dueMin = DAYS_6_MONTHS;
-      dueMax = DAYS_V3_BOOSTER_GRACE_END;
+      if (isTetanus) {
+        dueMin = DAYS_1_YEAR;
+        dueMax = TETANUS_V3_GRACE_END;
+      } else {
+        dueMin = DAYS_6_MONTHS;
+        dueMax = DAYS_V3_BOOSTER_GRACE_END;
+      }
       phase = 'V3';
       intervalOk = list.length >= 2;
     } else {
-      dueMin = DAYS_6_MONTHS;
-      dueMax = DAYS_V3_BOOSTER_GRACE_END;
+      if (isTetanus) {
+        dueMin = DAYS_2_YEARS;
+        dueMax = TETANUS_BOOSTER_GRACE_END;
+      } else {
+        dueMin = DAYS_6_MONTHS;
+        dueMax = DAYS_V3_BOOSTER_GRACE_END;
+      }
       phase = 'Booster';
     }
     const dueDateMin = addDays(lastDate, dueMin);
@@ -107,7 +129,11 @@ export function getVaccinationDueItems(horse: HorseLike): VaccDueItem[] {
       items.push({ horseId: horse.id, horseName: horse.name, type, sequence: phase, status: 'RED', message: msg });
       continue;
     }
-    const isOverdue = (phase === 'V3' || phase === 'Booster') ? d >= DAYS_V3_BOOSTER_OVERDUE : d >= DAYS_V2_OVERDUE;
+    const isOverdue = (phase === 'V3' || phase === 'Booster')
+      ? isTetanus
+        ? (phase === 'V3' ? d >= TETANUS_V3_OVERDUE : d >= TETANUS_BOOSTER_OVERDUE)
+        : d >= DAYS_V3_BOOSTER_OVERDUE
+      : d >= DAYS_V2_OVERDUE;
     if (isOverdue) {
       const overdue = d - dueMax;
       items.push({ horseId: horse.id, horseName: horse.name, type, sequence: phase, status: 'RED', message: `${label}: Überfällig. Spätestens-Termin war ${formatDate(dueDateMax)} (seit ${overdue} Tagen überfällig)` });

@@ -16,16 +16,19 @@ Deno.serve(async (req) => {
     if (!cronSecret || cronSecret !== Deno.env.get('CRON_SECRET')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { headers: { 'Content-Type': 'application/json', ...cors }, status: 401 });
     }
+    console.log('[run-daily-due-checks] Gestartet');
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: profiles } = await supabase
+    const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, first_name, last_name, notify_vaccination, notify_hoof')
       .eq('role', 'owner')
       .or('notify_vaccination.eq.true,notify_hoof.eq.true');
+
+    console.log('[run-daily-due-checks] Profiles:', { count: profiles?.length ?? 0, error: profilesError?.message });
 
     if (!profiles?.length) {
       return new Response(JSON.stringify({ ok: true, ownersChecked: 0, vaccSent: 0, hoofSent: 0 }), {
@@ -43,9 +46,12 @@ Deno.serve(async (req) => {
       const ownerId = p.id;
       const ownerName = [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Nutzer';
 
-      const { data } = await supabase.auth.admin.getUserById(ownerId);
-      const ownerEmail = data?.user?.email ?? '';
-      if (!ownerEmail) continue;
+      const { data: userData } = await supabase.auth.admin.getUserById(ownerId);
+      const ownerEmail = userData?.user?.email ?? '';
+      if (!ownerEmail) {
+        console.log('[run-daily-due-checks] Owner ohne E-Mail übersprungen:', { ownerId, ownerName });
+        continue;
+      }
 
       const { data: horses } = await supabase
         .from('horses')
@@ -59,51 +65,51 @@ Deno.serve(async (req) => {
         service_history: (h.service_history as unknown[]) ?? [],
       }));
 
-      if (p.notify_vaccination && horseList.length > 0) {
-        const vaccItems: { horseId: string; horseName: string; type: string; sequence: string; status: string; message: string }[] = [];
-        for (const h of horseList) {
-          vaccItems.push(...getVaccinationDueItems(h));
-        }
-        if (vaccItems.length > 0) {
-          const res = await fetch(`${fnUrl}/check-vaccination-due`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseKey}`,
-              'x-cron-secret': cronHeader,
-            },
-            body: JSON.stringify({ ownerId, ownerEmail, ownerName, items: vaccItems }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            vaccSent += data.sent ?? 0;
-          }
+      const vaccItems: { horseId: string; horseName: string; type: string; sequence: string; status: string; message: string }[] = [];
+      for (const h of horseList) vaccItems.push(...getVaccinationDueItems(h));
+      const hoofItems: { horseId: string; horseName: string; status: 'yellow' | 'red'; daysSince: number; message: string }[] = [];
+      for (const h of horseList) hoofItems.push(...getHoofDueItems(h));
+
+      console.log('[run-daily-due-checks] Besitzer:', { ownerId, ownerName, horses: horseList.length, vaccItems: vaccItems.length, hoofItems: hoofItems.length, notifyVacc: p.notify_vaccination, notifyHoof: p.notify_hoof });
+
+      if (p.notify_vaccination && horseList.length > 0 && vaccItems.length > 0) {
+        console.log('[run-daily-due-checks] Rufe check-vaccination-due auf');
+        const res = await fetch(`${fnUrl}/check-vaccination-due`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`,
+            'x-cron-secret': cronHeader,
+          },
+          body: JSON.stringify({ ownerId, ownerEmail, ownerName, items: vaccItems }),
+        });
+        const resBody = await res.json().catch(() => ({}));
+        console.log('[run-daily-due-checks] check-vaccination-due Antwort:', { status: res.status, ok: res.ok, body: resBody });
+        if (res.ok) {
+          vaccSent += resBody.sent ?? 0;
         }
       }
 
-      if (p.notify_hoof && horseList.length > 0) {
-        const hoofItems: { horseId: string; horseName: string; status: 'yellow' | 'red'; daysSince: number; message: string }[] = [];
-        for (const h of horseList) {
-          hoofItems.push(...getHoofDueItems(h));
-        }
-        if (hoofItems.length > 0) {
-          const res = await fetch(`${fnUrl}/check-hoof-due`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseKey}`,
-              'x-cron-secret': cronHeader,
-            },
-            body: JSON.stringify({ ownerId, ownerEmail, ownerName, items: hoofItems }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            hoofSent += data.sent ?? 0;
-          }
+      if (p.notify_hoof && horseList.length > 0 && hoofItems.length > 0) {
+        console.log('[run-daily-due-checks] Rufe check-hoof-due auf');
+        const res = await fetch(`${fnUrl}/check-hoof-due`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`,
+            'x-cron-secret': cronHeader,
+          },
+          body: JSON.stringify({ ownerId, ownerEmail, ownerName, items: hoofItems }),
+        });
+        const resBody = await res.json().catch(() => ({}));
+        console.log('[run-daily-due-checks] check-hoof-due Antwort:', { status: res.status, ok: res.ok, body: resBody });
+        if (res.ok) {
+          hoofSent += resBody.sent ?? 0;
         }
       }
     }
 
+    console.log('[run-daily-due-checks] Fertig:', { ownersChecked: profiles.length, vaccSent, hoofSent });
     return new Response(JSON.stringify({
       ok: true,
       ownersChecked: profiles.length,

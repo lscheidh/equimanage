@@ -549,7 +549,7 @@ export const HorseDetails: React.FC<HorseDetailsProps> = ({
                   <span className="text-sm font-medium">Hinweis zu Impf-Serien</span>
                 </summary>
                 <p className="mt-2 text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2">
-                <strong>Vollständige Serie</strong> (V1→V2→V3→Booster): Das Pferd ist bereits nach V2 konform (auch ohne V3/Booster); V3- und Booster-Fälligkeit bleiben bestehen. <strong>Nur letzter Booster</strong>: Ein Eintrag pro Kategorie mit Sequenz „Booster“; Fälligkeit = Datum + 6 Mon. + 21 Tage.
+                <strong>Vollständige Serie</strong> (V1→V2→V3→Booster): Das Pferd ist bereits nach V2 konform (auch ohne V3/Booster); V3- und Booster-Fälligkeit bleiben bestehen. <strong>Nur letzter Booster</strong>: Ein Eintrag pro Kategorie mit Sequenz „Booster“; Standard (Influenza, Herpes, West-Nil): V3 und Booster je 6 Mon. + 21 Tage. Tetanus: V3 fällig 1 Jahr nach V2, Booster alle 2 Jahre (jeweils 21 Tage Überziehungsfrist).
               </p>
               </details>
             )}

@@ -20,10 +20,17 @@ export const VALIDATION_PATTERNS = {
 const DAYS_V2_DUE = 28;
 const DAYS_V2_GRACE_END = 70;
 const DAYS_V2_OVERDUE = 71;
-/** V3/Booster: fällig ab 6 Monaten, Überziehungsfrist 21 Tage, kritisch ab 6 Mon + 22 Tage. Frühere Impfung = konform. */
+/** V3/Booster (Standard: Influenza, Herpes, West-Nil): fällig ab 6 Monaten, Überziehungsfrist 21 Tage, kritisch ab 6 Mon + 22 Tage. */
 const DAYS_6_MONTHS = 6 * 30;
 const DAYS_V3_BOOSTER_GRACE_END = DAYS_6_MONTHS + 21;
 const DAYS_V3_BOOSTER_OVERDUE = DAYS_6_MONTHS + 22;
+/** Tetanus: V3 fällig 1 Jahr nach V2, Booster alle 2 Jahre nach V3; jeweils 21 Tage Überziehungsfrist. */
+const DAYS_1_YEAR = 365;
+const TETANUS_V3_GRACE_END = DAYS_1_YEAR + 21;
+const TETANUS_V3_OVERDUE = DAYS_1_YEAR + 22;
+const DAYS_2_YEARS = 730;
+const TETANUS_BOOSTER_GRACE_END = DAYS_2_YEARS + 21;
+const TETANUS_BOOSTER_OVERDUE = DAYS_2_YEARS + 22;
 const NOTIFY_DAYS_BEFORE = 14;
 
 export const VACC_TYPES = ['Influenza', 'Herpes', 'Tetanus', 'West-Nil-Virus'] as const;
@@ -85,7 +92,8 @@ export interface VaccComplianceResult {
  * Überziehungsfrist = zusätzliche Tage; danach kritisch.
  *
  * - V2: Fällig ab Tag 28, Überziehungsfrist bis Tag 70, kritisch ab Tag 71.
- * - V3/Booster: Fällig ab 6 Monaten, Überziehungsfrist 21 Tage (bis 6 Mon + 21), kritisch ab 6 Mon + 22.
+ * - V3/Booster (Standard): Fällig ab 6 Monaten, Überziehungsfrist 21 Tage (bis 6 Mon + 21), kritisch ab 6 Mon + 22.
+ * - Tetanus: V3 fällig 1 Jahr nach V2 (Überziehungsfrist 21 Tage). Booster alle 2 Jahre nach V3 (ebenfalls 21 Tage Überziehungsfrist).
  *
  * 2. Nur letzte Booster-Impfung: Ein Eintrag pro Typ mit sequence Booster / isBooster. Keine
  *    V1/V2/V3 nötig. Gleiche Fällig-/Kritisch-Regeln ab Booster-Datum.
@@ -128,6 +136,7 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
 
     const onlyBooster =
       list.length === 1 && (seq === 'Booster' || last.isBooster);
+    const isTetanus = type === 'Tetanus';
 
     let dueMin: number;
     let dueMax: number;
@@ -135,21 +144,36 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
     let intervalOk = true;
 
     if (onlyBooster) {
-      dueMin = DAYS_6_MONTHS;
-      dueMax = DAYS_V3_BOOSTER_GRACE_END;
+      if (isTetanus) {
+        dueMin = DAYS_2_YEARS;
+        dueMax = TETANUS_BOOSTER_GRACE_END;
+      } else {
+        dueMin = DAYS_6_MONTHS;
+        dueMax = DAYS_V3_BOOSTER_GRACE_END;
+      }
       phase = 'Booster';
     } else if (seq === 'V1') {
       dueMin = DAYS_V2_DUE;
       dueMax = DAYS_V2_GRACE_END;
       phase = 'V2';
     } else if (seq === 'V2') {
-      dueMin = DAYS_6_MONTHS;
-      dueMax = DAYS_V3_BOOSTER_GRACE_END;
+      if (isTetanus) {
+        dueMin = DAYS_1_YEAR;
+        dueMax = TETANUS_V3_GRACE_END;
+      } else {
+        dueMin = DAYS_6_MONTHS;
+        dueMax = DAYS_V3_BOOSTER_GRACE_END;
+      }
       phase = 'V3';
       if (list.length < 2) intervalOk = false;
     } else {
-      dueMin = DAYS_6_MONTHS;
-      dueMax = DAYS_V3_BOOSTER_GRACE_END;
+      if (isTetanus) {
+        dueMin = DAYS_2_YEARS;
+        dueMax = TETANUS_BOOSTER_GRACE_END;
+      } else {
+        dueMin = DAYS_6_MONTHS;
+        dueMax = DAYS_V3_BOOSTER_GRACE_END;
+      }
       phase = 'Booster';
     }
 
@@ -176,7 +200,9 @@ export function checkVaccinationCompliance(horse: Horse): VaccComplianceResult {
 
     const isOverdue =
       phase === 'V3' || phase === 'Booster'
-        ? d >= DAYS_V3_BOOSTER_OVERDUE
+        ? isTetanus
+          ? (phase === 'V3' ? d >= TETANUS_V3_OVERDUE : d >= TETANUS_BOOSTER_OVERDUE)
+          : d >= DAYS_V3_BOOSTER_OVERDUE
         : d >= DAYS_V2_OVERDUE;
     if (isOverdue) {
       const overdue = d - dueMax;
